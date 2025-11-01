@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.firebaseauthtesting.Pages.BusinessMapScreen
+import com.example.firebaseauthtesting.Pages.BusinessRequestsScreen
 import com.example.firebaseauthtesting.Pages.Login
 import com.example.firebaseauthtesting.Pages.ProfileCompletionScreen
 import com.example.firebaseauthtesting.Pages.HomePage
@@ -132,12 +133,23 @@ fun MyAppNavigation(
                 businessViewModel = viewModel()
             )
         }
-        composable(Screen.BusinessMap.route) {
+        composable(
+            route = Screen.BusinessMap.route,
+            arguments = listOf(navArgument("serviceCategory") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val serviceCategory = backStackEntry.arguments?.getString("serviceCategory")
+
             BusinessMapScreen(
+                navController = navController,
                 authViewModel = authViewModel,
                 mapViewModel = viewModel(),
-                navController = navController
+                requestViewModel = viewModel(), // <-- Add the new ViewModel
+                serviceCategory = serviceCategory ?: "Unknown"
             )
+        }
+
+        composable(Screen.BusinessRequests.route) {
+            BusinessRequestsScreen(navController = navController)
         }
     }
 }

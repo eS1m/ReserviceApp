@@ -15,6 +15,7 @@ runtimeLivedata = "1.9.2"
 firebaseFirestore = "26.0.1"
 material3 = "1.4.0"
 firebaseCrashlyticsBuildtools = "3.0.6"
+animationGraphics = "1.9.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,6 +38,7 @@ androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtim
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
 material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }
+androidx-animation-graphics = { group = "androidx.compose.animation", name = "animation-graphics", version.ref = "animationGraphics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

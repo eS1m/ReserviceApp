@@ -161,7 +161,8 @@ fun Business(
                         profile = state.profile,
                         onSave = { selectedServices ->
                             businessViewModel.saveServices(selectedServices)
-                        }
+                        },
+                        navController = navController
                     )
                 }
                 is BusinessUiState.Error -> {
@@ -174,7 +175,10 @@ fun Business(
 }
 
 @Composable
-fun BusinessDashboard(profile: BusinessProfile, onSave: (List<String>) -> Unit) {
+fun BusinessDashboard(
+    profile: BusinessProfile,
+    onSave: (List<String>) -> Unit,
+    navController: NavController) {
     val allServices = listOf("Utilities", "Home Repair", "Maid")
     var selectedServices by remember { mutableStateOf(profile.services) }
     LaunchedEffect(profile.services) {
@@ -224,6 +228,16 @@ fun BusinessDashboard(profile: BusinessProfile, onSave: (List<String>) -> Unit) 
                 Text(text = serviceName, color = Color.White, modifier = Modifier.padding(start = 8.dp))
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick =
+                { navController.navigate(
+                    Screen.BusinessRequests.route)
+                }
+        ) {
+            Text("View Incoming Requests")
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = { onSave(selectedServices) },

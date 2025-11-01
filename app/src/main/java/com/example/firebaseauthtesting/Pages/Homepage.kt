@@ -219,11 +219,12 @@ fun HomePage(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(cardItems) { item ->
+                    val serviceName = item.first
                     RequestCard(
                         text = item.first,
                         iconVector = item.second,
                         onClick = {
-                            navController.navigate(Screen.BusinessMap.route)
+                            navController.navigate(Screen.BusinessMap.createRoute(serviceName))
                         }
                     )
                 }

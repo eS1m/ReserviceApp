@@ -1,6 +1,8 @@
 package com.example.firebaseauthtesting.Pages
 
+import com.example.firebaseauthtesting.R
 import android.content.Context
+import android.widget.TextView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,11 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -33,21 +37,33 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.infowindow.InfoWindow
+import android.widget.Button
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.example.firebaseauthtesting.ViewModels.RequestsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BusinessMapScreen(
     navController: NavController,
     authViewModel: AuthViewModel,
-    mapViewModel: BusinessMapViewModel = viewModel()
+    mapViewModel: BusinessMapViewModel = viewModel(),
+    requestViewModel: RequestsViewModel = viewModel(),
+    serviceCategory: String
 ) {
     val uiState by mapViewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val userProfile by authViewModel.userProfile.collectAsState()
+
+    LaunchedEffect(serviceCategory) {
+        mapViewModel.fetchBusinessesByService(serviceCategory)
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Businesses Near You", color = Color.White) },
+                title = { Text("$serviceCategory Near You", color = Color.White) },
                 navigationIcon = {
 
                     IconButton(onClick = {
@@ -79,7 +95,12 @@ fun BusinessMapScreen(
                 is MapUiState.Success -> {
                     MapViewContainer(
                         businesses = state.businesses,
-                        userProfile = userProfile
+                        userProfile = userProfile,
+                        serviceCategory = serviceCategory,
+                        mapViewModel = mapViewModel,
+                        onResult = { message ->
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        }
                     )
                 }
                 is MapUiState.Error -> {
@@ -94,7 +115,10 @@ fun BusinessMapScreen(
 fun MapViewContainer(
     modifier: Modifier = Modifier,
     businesses: List<BusinessMarker>,
-    userProfile: UserProfile?
+    userProfile: UserProfile?,
+    serviceCategory: String,
+    mapViewModel: BusinessMapViewModel,
+    onResult: (String) -> Unit
 ) {
     AndroidView(
         modifier = modifier.fillMaxSize(),
@@ -115,19 +139,54 @@ fun MapViewContainer(
             }
         },
         update = { mapView ->
-
             mapView.overlays.removeAll { it is Marker }
 
             businesses.forEach { business ->
                 val marker = Marker(mapView).apply {
                     position = GeoPoint(business.location.latitude, business.location.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = business.fullName
-
                 }
+
+                marker.infoWindow = CustomInfoWindow(
+                    mapView = mapView,
+                    markerData = business,
+                    serviceCategory = serviceCategory,
+                    mapViewModel = mapViewModel,
+                    onResult = onResult
+                )
+
                 mapView.overlays.add(marker)
             }
             mapView.invalidate()
         }
     )
+}
+
+class CustomInfoWindow(
+    mapView: MapView,
+    private val markerData: BusinessMarker,
+    private val serviceCategory: String,
+    private val mapViewModel: BusinessMapViewModel,
+    private val onResult: (String) -> Unit
+) : InfoWindow(R.layout.layout_info_window, mapView) {
+
+    override fun onOpen(item: Any?) {
+        val titleView: TextView = mView.findViewById(R.id.bubble_title)
+        val descriptionView: TextView = mView.findViewById(R.id.bubble_description)
+        val requestButton: Button = mView.findViewById(R.id.bubble_request_button)
+
+        titleView.text = markerData.fullName
+        descriptionView.text = "Services: ${markerData.services.joinToString(", ")}"
+
+        requestButton.setOnClickListener {
+            mapViewModel.createServiceRequest(markerData.uid, serviceCategory) { success, message ->
+                onResult(message)
+            }
+            close()
+        }
+    }
+
+    override fun onClose() {
+
+    }
 }
