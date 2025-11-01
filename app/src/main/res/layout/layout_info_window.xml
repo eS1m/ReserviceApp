@@ -3,16 +3,16 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/bonuspack_bubble"
+    android:background="@drawable/custom_info_bubble"
     android:padding="10dp">
 
     <TextView
         android:id="@+id/bubble_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="Business Name"
         android:textColor="@android:color/black"
-        android:textStyle="bold"
-        android:text="Business Name" />
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/bubble_description"

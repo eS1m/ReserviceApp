@@ -155,6 +155,16 @@ fun MapViewContainer(
                     onResult = onResult
                 )
 
+                marker.setOnMarkerClickListener { clickedMarker, _ ->
+                    if (clickedMarker.isInfoWindowShown) {
+                        clickedMarker.closeInfoWindow()
+                    } else {
+                        clickedMarker.showInfoWindow()
+                    }
+                    true
+                }
+
+
                 mapView.overlays.add(marker)
             }
             mapView.invalidate()

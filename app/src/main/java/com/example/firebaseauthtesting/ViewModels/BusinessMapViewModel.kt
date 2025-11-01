@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldPath
 
 data class BusinessMarker(
     val uid: String,
@@ -37,21 +38,31 @@ class BusinessMapViewModel : ViewModel() {
     fun fetchBusinessesByService(serviceCategory: String) {
         viewModelScope.launch {
             _uiState.value = MapUiState.Loading
+
+            val currentUserId = auth.currentUser?.uid
+            if (currentUserId == null) {
+                _uiState.value = MapUiState.Error("User not logged in.")
+                return@launch
+            }
             try {
                 val querySnapshot = db.collection("users")
                     .whereEqualTo("isBusiness", true)
-                    .whereArrayContains("services", serviceCategory) // The key change!
+                    .whereArrayContains("services", serviceCategory)
+                    .whereNotEqualTo(FieldPath.documentId(), currentUserId)
                     .get()
                     .await()
 
                 val businessList = querySnapshot.documents.mapNotNull { document ->
                     val fullName = document.getString("fullName")
                     val location = document.getGeoPoint("location")
+                    @Suppress("UNCHECKED_CAST")
+                    val services = document.get("services") as? List<String> ?: emptyList()
                     if (fullName != null && location != null) {
                         BusinessMarker(
                             uid = document.id,
                             fullName = fullName,
-                            location = location
+                            location = location,
+                            services = services
                         )
                     } else {
                         null
