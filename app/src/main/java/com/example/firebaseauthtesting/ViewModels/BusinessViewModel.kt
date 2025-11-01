@@ -13,10 +13,15 @@ import kotlinx.coroutines.tasks.await
 // State definition for the Business page UI
 sealed class BusinessUiState {
     object Loading : BusinessUiState()
-    object IsBusiness : BusinessUiState()
+    data class IsBusiness(val profile: BusinessProfile) : BusinessUiState()
     object NotABusiness : BusinessUiState()
     data class Error(val message: String) : BusinessUiState()
 }
+
+data class BusinessProfile(
+    val isBusiness: Boolean = false,
+    val services: List<String> = emptyList()
+)
 
 class BusinessViewModel : ViewModel() {
 
@@ -41,13 +46,31 @@ class BusinessViewModel : ViewModel() {
             try {
                 val document = db.collection("users").document(userId).get().await()
                 val isBusiness = document.getBoolean("isBusiness") ?: false
-                _uiState.value = if (isBusiness) {
-                    BusinessUiState.IsBusiness
+                if (isBusiness) {
+                    @Suppress("UNCHECKED_CAST")
+                    val services = document.get("services") as? List<String> ?: emptyList()
+                    _uiState.value = BusinessUiState.IsBusiness(BusinessProfile(isBusiness = true, services = services))
                 } else {
-                    BusinessUiState.NotABusiness
+                    _uiState.value = BusinessUiState.NotABusiness
                 }
             } catch (e: Exception) {
                 _uiState.value = BusinessUiState.Error("Failed to fetch user data: ${e.message}")
+            }
+        }
+    }
+
+    fun saveServices(selectedServices: List<String>) {
+        viewModelScope.launch {
+            val userId = auth.currentUser?.uid ?: return@launch
+            try {
+                // Update the "services" field in Firestore
+                db.collection("users").document(userId).update("services", selectedServices).await()
+
+                // Refresh the UI state to reflect the saved data
+                _uiState.value = BusinessUiState.IsBusiness(BusinessProfile(isBusiness = true, services = selectedServices))
+                // You could also add a temporary "Saved!" message state if you want
+            } catch (e: Exception) {
+                _uiState.value = BusinessUiState.Error("Failed to save services: ${e.message}")
             }
         }
     }
@@ -57,7 +80,9 @@ class BusinessViewModel : ViewModel() {
             val userId = auth.currentUser?.uid ?: return@launch
             try {
                 db.collection("users").document(userId).update("isBusiness", true).await()
-                _uiState.value = BusinessUiState.IsBusiness
+                _uiState.value = BusinessUiState.IsBusiness(
+                    BusinessProfile(isBusiness = true, services = emptyList())
+                )
             } catch (e: Exception) {
                 _uiState.value = BusinessUiState.Error("Update failed: ${e.message}")
             }
