@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Lightbulb
@@ -137,15 +139,23 @@ fun HomePage(
             ),
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Home",
-                        fontFamily = interphasesFamily,
-                        fontSize = 32.sp,
-                        modifier = Modifier.padding(start = 16.dp, top = 20.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                title = { Text(
+                    text = "Reservice",
+                    color = Color.White,
+                    fontFamily = interphasesFamily,
+                    fontSize = 32.sp) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1b4332)),
+                actions = {
+                    IconButton(onClick = {
+                        navController.navigate(Screen.ProfileRequests.route)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.List,
+                            contentDescription = "My Requests",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         },
         bottomBar = {

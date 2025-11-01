@@ -11,4 +11,5 @@ sealed class Screen(val route: String) {
         fun createRoute(serviceCategory: String) = "business_map_screen/$serviceCategory"
     }
     object BusinessRequests : Screen("business_requests_screen")
+    object ProfileRequests : Screen("profile_requests_screen")
 }

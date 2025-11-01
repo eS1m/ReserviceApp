@@ -24,6 +24,7 @@ import com.example.firebaseauthtesting.Pages.Login
 import com.example.firebaseauthtesting.Pages.ProfileCompletionScreen
 import com.example.firebaseauthtesting.Pages.HomePage
 import com.example.firebaseauthtesting.Pages.Profile
+import com.example.firebaseauthtesting.Pages.ProfileRequestsScreen
 import com.example.firebaseauthtesting.Pages.Signup
 import com.example.firebaseauthtesting.ViewModels.AuthViewModel
 import com.example.firebaseauthtesting.ViewModels.AuthState
@@ -150,6 +151,10 @@ fun MyAppNavigation(
 
         composable(Screen.BusinessRequests.route) {
             BusinessRequestsScreen(navController = navController)
+        }
+
+        composable(Screen.ProfileRequests.route) {
+            ProfileRequestsScreen(navController = navController)
         }
     }
 }
