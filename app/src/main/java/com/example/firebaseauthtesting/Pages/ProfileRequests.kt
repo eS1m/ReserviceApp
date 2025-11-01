@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +27,9 @@ import androidx.navigation.NavController
 import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsUiState
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
+import com.google.firebase.Timestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,23 +89,35 @@ fun SentRequestList(requests: List<ServiceRequest>) {
 @Composable
 fun SentRequestItemCard(request: ServiceRequest) {
     val statusColor = when (request.status) {
-        "Accepted" -> Color(0xFF2E7D32)
-        "Declined" -> Color(0xFFC62828)
+        "Accepted" -> Color(0xFF2E7D32) // Dark Green
+        "Declined" -> Color(0xFFC62828) // Dark Red
         else -> Color.Gray
     }
 
-    Card(elevation = CardDefaults.cardElevation(4.dp)) {
+    Card(elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(request.serviceCategory, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(4.dp))
-            Text("Service: ${request.serviceCategory}", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = "Request for: ${request.serviceCategory}",
+                style = MaterialTheme.typography.titleLarge
+            )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "Status: ${request.status}",
                 fontWeight = FontWeight.Bold,
                 color = statusColor
             )
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "Sent: ${formatTimestamp(request.timestamp)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
         }
     }
 }
 
+private fun formatTimestamp(timestamp: Timestamp): String {
+    val sdf = SimpleDateFormat("MMM dd, yyyy, hh:mm a", Locale.getDefault())
+    return sdf.format(timestamp.toDate())
+}

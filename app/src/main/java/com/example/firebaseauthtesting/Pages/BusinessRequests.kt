@@ -19,6 +19,9 @@ import androidx.navigation.NavController
 import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.example.firebaseauthtesting.ViewModels.RequestsUiState
 import com.example.firebaseauthtesting.ViewModels.RequestsViewModel
+import java.text.SimpleDateFormat
+import com.google.firebase.Timestamp
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,9 +59,7 @@ fun BusinessRequestsScreen(
                     } else {
                         RequestList(
                             requests = state.requests,
-                            onUpdateRequest = { requestId, newStatus ->
-                                requestsViewModel.updateRequestStatus(requestId, newStatus)
-                            }
+                            viewModel = requestsViewModel
                         )
                     }
                 }
@@ -70,7 +71,7 @@ fun BusinessRequestsScreen(
 @Composable
 fun RequestList(
     requests: List<ServiceRequest>,
-    onUpdateRequest: (String, String) -> Unit
+    viewModel: RequestsViewModel
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -78,38 +79,56 @@ fun RequestList(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(requests) { request ->
-            RequestItemCard(request = request, onUpdateRequest = onUpdateRequest)
+            RequestItemCard(request = request, viewModel = viewModel)
         }
     }
 }
 
 @Composable
-fun RequestItemCard(
-    request: ServiceRequest,
-    onUpdateRequest: (String, String) -> Unit
-) {
-    Card(elevation = CardDefaults.cardElevation(4.dp)) {
+fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
+    Card(elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(request.serviceCategory, style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Request from: ${request.userName}",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Text(
+                "Service: ${request.serviceCategory}",
+                style = MaterialTheme.typography.bodyMedium
+            )
             Spacer(Modifier.height(4.dp))
-            Text("From: ${request.userName}", style = MaterialTheme.typography.bodyMedium)
-            Text("Status: ${request.status}", fontWeight = FontWeight.Bold)
+            Text(
+                "Status: ${request.status}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "Received: ${formatTimestamp(request.timestamp)}", // Use the helper function
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
             Spacer(Modifier.height(16.dp))
 
             if (request.status == "Pending") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    OutlinedButton(
-                        onClick = { onUpdateRequest(request.requestId, "Declined") },
-                        modifier = Modifier.padding(end = 8.dp)
+                    // --- 3. FIX THE onClick ACTIONS ---
+                    Button(
+                        onClick = { viewModel.updateRequestStatus(request.requestId, "Accepted") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) {
+                        Text("Accept")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { viewModel.updateRequestStatus(request.requestId, "Declined") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
                     ) {
                         Text("Decline")
-                    }
-                    Button(onClick = { onUpdateRequest(request.requestId, "Accepted") }) {
-                        Text("Accept")
                     }
                 }
             }
@@ -117,3 +136,7 @@ fun RequestItemCard(
     }
 }
 
+private fun formatTimestamp(timestamp: Timestamp): String {
+    val sdf = SimpleDateFormat("MMM dd, yyyy, hh:mm a", Locale.getDefault())
+    return sdf.format(timestamp.toDate())
+}
