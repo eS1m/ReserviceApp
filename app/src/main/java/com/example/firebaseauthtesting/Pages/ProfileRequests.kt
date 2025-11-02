@@ -101,6 +101,15 @@ fun SentRequestItemCard(request: ServiceRequest) {
                 style = MaterialTheme.typography.titleLarge
             )
             Spacer(Modifier.height(8.dp))
+            request.scheduledDateTime?.let { scheduledTime ->
+                Text(
+                    // Use the formatTimestamp function but simplify the format string
+                    text = "Scheduled for: ${formatScheduledTimestamp(scheduledTime)}",
+                    style = MaterialTheme.typography.bodyLarge, // Make it stand out a bit
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+            }
             Text(
                 text = "Status: ${request.status}",
                 fontWeight = FontWeight.Bold,
@@ -115,6 +124,11 @@ fun SentRequestItemCard(request: ServiceRequest) {
             )
         }
     }
+}
+
+private fun formatScheduledTimestamp(timestamp: Timestamp): String {
+    val sdf = SimpleDateFormat("MMM dd, yyyy 'at' hh:00 a", Locale.getDefault())
+    return sdf.format(timestamp.toDate())
 }
 
 private fun formatTimestamp(timestamp: Timestamp): String {

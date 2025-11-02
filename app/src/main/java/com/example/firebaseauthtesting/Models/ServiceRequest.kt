@@ -1,6 +1,7 @@
 package com.example.firebaseauthtesting.Models
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.ServerTimestamp
 
 data class ServiceRequest(
     val requestId: String = "",
@@ -9,5 +10,7 @@ data class ServiceRequest(
     val businessId: String = "",
     val serviceCategory: String = "",
     val status: String = "Pending",
-    val timestamp: Timestamp = Timestamp.now()
+    @ServerTimestamp
+    val timestamp: Timestamp = Timestamp.now(),
+    val scheduledDateTime: Timestamp? = null
 )

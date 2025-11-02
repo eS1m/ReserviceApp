@@ -14,6 +14,7 @@ import kotlinx.coroutines.tasks.await
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldPath
 
+
 data class BusinessMarker(
     val uid: String,
     val fullName: String,
@@ -77,41 +78,36 @@ class BusinessMapViewModel : ViewModel() {
     fun createServiceRequest(
         businessId: String,
         serviceCategory: String,
+        scheduledDateTime: Timestamp,
         onResult: (Boolean, String) -> Unit
     ) {
         viewModelScope.launch {
             val currentUser = auth.currentUser
+            val userProfile = db.collection("users").document(currentUser!!.uid).get().await()
+            val userName = userProfile.getString("fullName") ?: "Unknown User"
+
             if (currentUser == null) {
                 onResult(false, "You must be logged in to make a request.")
                 return@launch
             }
-            val userProfile = try {
-                db.collection("users").document(currentUser.uid).get().await()
-            } catch (e: Exception) {
-                onResult(false, "Failed to get user profile.")
-                return@launch
-            }
-
-            val userName = userProfile.getString("fullName") ?: "Unknown User"
-            val userId = currentUser.uid
-
-            val newRequestRef = db.collection("requests").document()
-
-            val request = ServiceRequest(
-                requestId = newRequestRef.id,
-                userId = userId,
-                userName = userName,
-                businessId = businessId,
-                serviceCategory = serviceCategory,
-                status = "Pending",
-                timestamp = Timestamp.now()
-            )
 
             try {
+                val newRequestRef = db.collection("requests").document()
+                val request = ServiceRequest(
+                    requestId = newRequestRef.id,
+                    userId = currentUser.uid,
+                    userName = userName,
+                    businessId = businessId,
+                    serviceCategory = serviceCategory,
+                    // Pass the new data to the model
+                    scheduledDateTime = scheduledDateTime
+                )
+
                 newRequestRef.set(request).await()
-                onResult(true, "Request sent successfully!")
+                onResult(true, "Request successfully sent!")
+
             } catch (e: Exception) {
-                onResult(false, "Failed to send request: ${e.message}")
+                onResult(false, "Error sending request: ${e.message}")
             }
         }
     }
