@@ -19,9 +19,8 @@ import androidx.navigation.NavController
 import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.example.firebaseauthtesting.ViewModels.RequestsUiState
 import com.example.firebaseauthtesting.ViewModels.RequestsViewModel
-import java.text.SimpleDateFormat
-import com.google.firebase.Timestamp
-import java.util.Locale
+import com.example.firebaseauthtesting.Utils.formatScheduledTimestamp
+import com.example.firebaseauthtesting.Utils.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +114,22 @@ fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
             )
             Spacer(Modifier.height(8.dp))
 
+            if (request.status == "Accepted") {
+                Text(
+                    "Pending Payment from user.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
+            } else if (request.status == "Paid") {
+                Text(
+                    "Payment Received!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF2E7D32), // Green color for success
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             Text(
                 text = "Received: ${formatTimestamp(request.timestamp)}", // Use the helper function
                 style = MaterialTheme.typography.bodySmall,
@@ -145,14 +160,4 @@ fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
             }
         }
     }
-}
-
-private fun formatScheduledTimestamp(timestamp: Timestamp): String {
-    val sdf = SimpleDateFormat("MMM dd, yyyy 'at' hh:00 a", Locale.getDefault())
-    return sdf.format(timestamp.toDate())
-}
-
-private fun formatTimestamp(timestamp: Timestamp): String {
-    val sdf = SimpleDateFormat("MMM dd, yyyy, hh:mm a", Locale.getDefault())
-    return sdf.format(timestamp.toDate())
 }

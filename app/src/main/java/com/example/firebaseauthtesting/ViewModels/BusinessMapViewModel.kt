@@ -1,5 +1,6 @@
 package com.example.firebaseauthtesting.ViewModels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.firebaseauthtesting.Models.ServiceRequest
@@ -47,31 +48,35 @@ class BusinessMapViewModel : ViewModel() {
             }
             try {
                 val querySnapshot = db.collection("users")
-                    .whereEqualTo("isBusiness", true)
-                    .whereArrayContains("services", serviceCategory)
+                    .whereEqualTo("business.isBusiness", true) // Correct path
+                    .whereArrayContains("business.services", serviceCategory) // Correct path
                     .whereNotEqualTo(FieldPath.documentId(), currentUserId)
                     .get()
                     .await()
 
                 val businessList = querySnapshot.documents.mapNotNull { document ->
-                    val fullName = document.getString("fullName")
-                    val location = document.getGeoPoint("location")
-                    @Suppress("UNCHECKED_CAST")
-                    val services = document.get("services") as? List<String> ?: emptyList()
-                    if (fullName != null && location != null) {
+                    val userProfile = document.toObject(UserProfile::class.java)
+
+                    val businessDetails = userProfile?.business
+
+                    if (userProfile != null && businessDetails != null) {
                         BusinessMarker(
                             uid = document.id,
-                            fullName = fullName,
-                            location = location,
-                            services = services
+                            fullName = userProfile.fullName,
+                            location = userProfile.location,
+                            // Now this access is guaranteed to be safe.
+                            services = businessDetails.services
                         )
                     } else {
+                        Log.w("BusinessMapViewModel", "Failed to map document: ${document.id}")
                         null
                     }
                 }
                 _uiState.value = MapUiState.Success(businessList)
+                Log.d("BusinessMapViewModel", "Found ${businessList.size} businesses for service '$serviceCategory'")
             } catch (e: Exception) {
                 _uiState.value = MapUiState.Error("Failed to fetch businesses: ${e.message}")
+                Log.e("BusinessMapViewModel", "Error fetching businesses", e)
             }
         }
     }

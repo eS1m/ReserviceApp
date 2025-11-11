@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.example.firebaseauthtesting.ViewModels.RequestsViewModel
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.util.Log
 import android.widget.DatePicker
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
@@ -193,6 +194,8 @@ fun MapViewContainer(
                 val marker = Marker(mapView).apply {
                     position = GeoPoint(business.location.latitude, business.location.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    // It's good practice to set an icon
+                    //icon = mapView.context.getDrawable(R.drawable.marker)
                 }
 
                 marker.infoWindow = object : InfoWindow(R.layout.layout_info_window, mapView) {
@@ -202,7 +205,10 @@ fun MapViewContainer(
                         val requestButton: Button = mView.findViewById(R.id.bubble_request_button)
 
                         titleView.text = business.fullName
-                        descriptionView.text = "Services: ${business.services.joinToString(", ")}"
+                        Log.d("InfoWindowDebug", "Business: ${business.fullName}, Services: ${business.services}")
+
+                        val servicesText = business.services.joinToString(", ")
+                        descriptionView.text = mapView.context.getString(R.string.services_description, servicesText)
 
                         requestButton.setOnClickListener {
                             selectedBusiness = business
@@ -210,7 +216,9 @@ fun MapViewContainer(
                             close()
                         }
                     }
-                    override fun onClose() { /* No action needed */ }
+                    override fun onClose() {
+                        // No special action needed here.
+                    }
                 }
 
                 marker.setOnMarkerClickListener { clickedMarker, _ ->

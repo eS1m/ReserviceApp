@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -27,17 +26,22 @@ import androidx.navigation.NavController
 import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsUiState
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsViewModel
-import java.text.SimpleDateFormat
-import java.util.Locale
-import com.google.firebase.Timestamp
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.platform.LocalContext
+import com.example.firebaseauthtesting.ViewModels.AuthViewModel
+import com.example.firebaseauthtesting.Utils.formatScheduledTimestamp
+import com.example.firebaseauthtesting.Utils.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileRequestsScreen(
     navController: NavController,
-    requestsViewModel: ProfileRequestsViewModel = viewModel()
+    authViewModel: AuthViewModel,
+    requestsViewModel: ProfileRequestsViewModel = viewModel(),
 ) {
     val uiState by requestsViewModel.uiState.collectAsState()
+    val userProfile by authViewModel.userProfile.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -65,7 +69,9 @@ fun ProfileRequestsScreen(
                     if (state.requests.isEmpty()) {
                         Text("You have not made any requests.", color = Color.Gray)
                     } else {
-                        SentRequestList(requests = state.requests)
+                        SentRequestList(
+                            requests = state.requests
+                        )
                     }
                 }
             }
@@ -74,64 +80,65 @@ fun ProfileRequestsScreen(
 }
 
 @Composable
-fun SentRequestList(requests: List<ServiceRequest>) {
+fun SentRequestList(
+    requests: List<ServiceRequest>,
+) {
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(requests) { request ->
-            SentRequestItemCard(request = request)
+            SentRequestItemCard(
+                request = request,
+            )
         }
     }
 }
 
-@Composable
-fun SentRequestItemCard(request: ServiceRequest) {
-    val statusColor = when (request.status) {
-        "Accepted" -> Color(0xFF2E7D32) // Dark Green
-        "Declined" -> Color(0xFFC62828) // Dark Red
-        else -> Color.Gray
-    }
+    @Composable
+    fun SentRequestItemCard(
+        request: ServiceRequest,
+    ) {
+        val statusColor = when (request.status) {
+            "Accepted" -> Color(0xFF2E7D32) // Dark Green
+            "Declined" -> Color(0xFFC62828) // Dark Red
+            "Paid" -> Color(0xFF1565C0) // Blue for Paid
+            else -> Color.Gray
+        }
 
-    Card(elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Request for: ${request.serviceCategory}",
-                style = MaterialTheme.typography.titleLarge
-            )
-            Spacer(Modifier.height(8.dp))
-            request.scheduledDateTime?.let { scheduledTime ->
+        Card(elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    // Use the formatTimestamp function but simplify the format string
-                    text = "Scheduled for: ${formatScheduledTimestamp(scheduledTime)}",
-                    style = MaterialTheme.typography.bodyLarge, // Make it stand out a bit
-                    fontWeight = FontWeight.Bold
+                    text = "Request for: ${request.serviceCategory}",
+                    style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(Modifier.height(8.dp))
-            }
-            Text(
-                text = "Status: ${request.status}",
-                fontWeight = FontWeight.Bold,
-                color = statusColor
-            )
-            Spacer(Modifier.height(8.dp))
 
-            Text(
-                text = "Sent: ${formatTimestamp(request.timestamp)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
+                request.scheduledDateTime?.let { scheduledTime ->
+                    Text(
+                        text = "Scheduled for: ${formatScheduledTimestamp(scheduledTime)}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                Text(
+                    text = "Status: ${request.status}",
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor
+                )
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = "Sent: ${formatTimestamp(request.timestamp)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+
+            }
         }
     }
-}
-
-private fun formatScheduledTimestamp(timestamp: Timestamp): String {
-    val sdf = SimpleDateFormat("MMM dd, yyyy 'at' hh:00 a", Locale.getDefault())
-    return sdf.format(timestamp.toDate())
-}
-
-private fun formatTimestamp(timestamp: Timestamp): String {
-    val sdf = SimpleDateFormat("MMM dd, yyyy, hh:mm a", Locale.getDefault())
-    return sdf.format(timestamp.toDate())
-}

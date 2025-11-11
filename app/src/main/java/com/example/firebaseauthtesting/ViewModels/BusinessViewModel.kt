@@ -1,5 +1,6 @@
 package com.example.firebaseauthtesting.ViewModels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
@@ -45,10 +46,10 @@ class BusinessViewModel : ViewModel() {
 
             try {
                 val document = db.collection("users").document(userId).get().await()
-                val isBusiness = document.getBoolean("isBusiness") ?: false
+                val isBusiness = document.getBoolean("business.isBusiness") ?: false
                 if (isBusiness) {
                     @Suppress("UNCHECKED_CAST")
-                    val services = document.get("services") as? List<String> ?: emptyList()
+                    val services = document.get("business.services") as? List<String> ?: emptyList()
                     _uiState.value = BusinessUiState.IsBusiness(BusinessProfile(isBusiness = true, services = services))
                 } else {
                     _uiState.value = BusinessUiState.NotABusiness
@@ -63,14 +64,13 @@ class BusinessViewModel : ViewModel() {
         viewModelScope.launch {
             val userId = auth.currentUser?.uid ?: return@launch
             try {
-                // Update the "services" field in Firestore
-                db.collection("users").document(userId).update("services", selectedServices).await()
+                db.collection("users").document(userId).update("business.services", selectedServices).await()
 
-                // Refresh the UI state to reflect the saved data
                 _uiState.value = BusinessUiState.IsBusiness(BusinessProfile(isBusiness = true, services = selectedServices))
-                // You could also add a temporary "Saved!" message state if you want
+                Log.d("BusinessViewModel", "Services updated successfully.")
             } catch (e: Exception) {
                 _uiState.value = BusinessUiState.Error("Failed to save services: ${e.message}")
+                Log.e("BusinessViewModel", "Error saving services", e)
             }
         }
     }
@@ -79,12 +79,19 @@ class BusinessViewModel : ViewModel() {
         viewModelScope.launch {
             val userId = auth.currentUser?.uid ?: return@launch
             try {
-                db.collection("users").document(userId).update("isBusiness", true).await()
+                val businessData = mapOf(
+                    "isBusiness" to true,
+                    "services" to emptyList<String>()
+                )
+                db.collection("users").document(userId).update("business", businessData).await()
+
                 _uiState.value = BusinessUiState.IsBusiness(
                     BusinessProfile(isBusiness = true, services = emptyList())
                 )
+                Log.d("BusinessViewModel", "User upgraded to business account.")
             } catch (e: Exception) {
                 _uiState.value = BusinessUiState.Error("Update failed: ${e.message}")
+                Log.e("BusinessViewModel", "Error upgrading account", e)
             }
         }
     }

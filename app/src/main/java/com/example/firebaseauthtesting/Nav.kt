@@ -119,13 +119,16 @@ fun MyAppNavigation(
             )
         }
         composable(Screen.Home.route) {
-            // This is your new home page
-            HomePage(navController = navController)
+            HomePage(
+                navController = navController,
+                authViewModel = authViewModel
+            )
         }
         composable(Screen.Profile.route){
             Profile(
                 navController = navController,
-                authViewModel = authViewModel)
+                authViewModel = authViewModel,
+            )
         }
         composable(Screen.Business.route) {
             Business(
@@ -144,7 +147,7 @@ fun MyAppNavigation(
                 navController = navController,
                 authViewModel = authViewModel,
                 mapViewModel = viewModel(),
-                requestViewModel = viewModel(), // <-- Add the new ViewModel
+                requestViewModel = viewModel(),
                 serviceCategory = serviceCategory ?: "Unknown"
             )
         }
@@ -154,7 +157,10 @@ fun MyAppNavigation(
         }
 
         composable(Screen.ProfileRequests.route) {
-            ProfileRequestsScreen(navController = navController)
+            ProfileRequestsScreen(
+                navController = navController,
+                authViewModel = authViewModel
+            )
         }
     }
 }

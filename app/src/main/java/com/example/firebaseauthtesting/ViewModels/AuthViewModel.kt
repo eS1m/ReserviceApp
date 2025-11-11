@@ -9,26 +9,33 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.firestore
-import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.PropertyName
 
 data class UserProfile(
     val fullName: String = "",
     val phoneNumber: String = "",
     val email: String = "",
-    val location: GeoPoint = GeoPoint(0.0, 0.0), // Default location
-    val isBusiness: Boolean = false
+    val location: GeoPoint = GeoPoint(0.0, 0.0),
+    var business: BusinessDetails? = null
 )
+
+data class BusinessDetails(
+    @get:PropertyName("isBusiness") @set:PropertyName("isBusiness")
+    var isBusiness: Boolean = false,
+    var services: List<String> = emptyList()
+)
+
 sealed class AuthState {
     data class Authenticated(val user: FirebaseUser) : AuthState()
     object Unauthenticated : AuthState()
     object Loading :AuthState()
     data class Error(val message : String) : AuthState()
-    data object RequiresProfileCompletion : AuthState()
 }
 
 class AuthViewModel() : ViewModel() {
@@ -36,7 +43,9 @@ class AuthViewModel() : ViewModel() {
     private val db = Firebase.firestore
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
+    private var userProfileListener: ListenerRegistration? = null
     val userProfile: StateFlow<UserProfile?> = _userProfile
+
 
     val authState = _authState.asStateFlow()
 
@@ -54,41 +63,47 @@ class AuthViewModel() : ViewModel() {
             }
         }
     }
+    fun fetchUserProfile(userId: String) {
+        userProfileListener?.remove()
 
-    private fun fetchUserProfile(userId: String) {
-        viewModelScope.launch {
-            try {
-                val document = db.collection("users").document(userId).get().await()
-                _userProfile.value = document.toObject<UserProfile>()
-            } catch (e: Exception) {
-                _userProfile.value = null
+        userProfileListener = db.collection("users").document(userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("AuthViewModel", "Listen failed.", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    _userProfile.value = snapshot.toObject(UserProfile::class.java)
+
+                } else {
+                    _userProfile.value = null
+                }
             }
-        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        userProfileListener?.remove()
     }
 
     fun logout() {
-        viewModelScope.launch {
-            try {
-                auth.signOut()
-                _authState.value = AuthState.Unauthenticated
-            } catch (e: Exception) {
-                _authState.value = AuthState.Error("Logout failed: ${e.message}")
-            }
-        }
+        auth.signOut()
+        userProfileListener?.remove()
+        _userProfile.value = null
     }
     fun login(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("Email or password cannot be empty")
             return
         }
-
         _authState.value = AuthState.Loading
         viewModelScope.launch {
             try {
                 val authResult = auth.signInWithEmailAndPassword(email, password).await()
                 authResult.user?.let { user ->
-                    // 3. On successful login, pass the user object
                     _authState.value = AuthState.Authenticated(user)
+                    _userProfile.value = null
+                    fetchUserProfile(user.uid)
                 } ?: run {
                     _authState.value = AuthState.Error("Login failed: User is null")
                 }
@@ -100,34 +115,12 @@ class AuthViewModel() : ViewModel() {
         }
     }
 
-    fun signup(email: String, password: String) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            try {
-                val authResult = auth.createUserWithEmailAndPassword(email, password).await()
-                val firebaseUser = authResult.user
-
-                if (firebaseUser != null) {
-                    // SUCCESS: User is created in Firebase Auth.
-                    // Now, signal that the app must navigate to the profile completion screen.
-                    _authState.value = AuthState.RequiresProfileCompletion
-                    Log.d("AuthViewModel", "Signup success. UID: ${firebaseUser.uid}. Signaling profile completion is required.")
-                } else {
-                    _authState.value = AuthState.Error("Signup successful, but failed to get user.")
-                }
-            } catch (e: Exception) {
-                Log.e("AuthViewModel", "Signup failed", e)
-                _authState.value = AuthState.Error(e.message ?: "Signup failed.")
-            }
-        }
-    }
-
     fun createUserWithProfile(
         email: String,
         password: String,
         fullName: String,
         phoneNumber: String,
-        location: com.google.firebase.firestore.GeoPoint,
+        location: GeoPoint,
         isBusiness: Boolean
     ) {
         viewModelScope.launch {
@@ -139,19 +132,24 @@ class AuthViewModel() : ViewModel() {
 
                 if (user != null) {
 
-                    val userProfile = hashMapOf(
-                        "fullName" to fullName,
-                        "phoneNumber" to phoneNumber,
-                        "location" to location,
-                        "email" to email,
-                        "isBusiness" to isBusiness
+                    val businessDetails = BusinessDetails(
+                        isBusiness = isBusiness,
+                        services = emptyList()
+                    )
+
+                    val userProfile = UserProfile(
+                        fullName = fullName,
+                        phoneNumber = phoneNumber,
+                        location = location,
+                        email = email,
+                        business = businessDetails
                     )
 
                     db.collection("users").document(user.uid)
                         .set(userProfile)
                         .await()
 
-
+                    fetchUserProfile(user.uid)
                     _authState.value = AuthState.Authenticated(user)
 
                 } else {
@@ -168,3 +166,5 @@ class AuthViewModel() : ViewModel() {
         fetchUserProfile(userId)
     }
 }
+
+
