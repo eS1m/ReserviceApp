@@ -28,7 +28,8 @@ data class UserProfile(
 data class BusinessDetails(
     @get:PropertyName("isBusiness") @set:PropertyName("isBusiness")
     var isBusiness: Boolean = false,
-    var services: List<String> = emptyList()
+    var manager: String? = null,
+    var services: List<String> = emptyList(),
 )
 
 sealed class AuthState {

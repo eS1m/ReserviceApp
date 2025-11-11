@@ -14,6 +14,7 @@ import kotlinx.coroutines.tasks.await
 // State definition for the Business page UI
 sealed class BusinessUiState {
     object Loading : BusinessUiState()
+    data class NeedsManagerSetup(val profile: BusinessProfile) : BusinessUiState()
     data class IsBusiness(val profile: BusinessProfile) : BusinessUiState()
     object NotABusiness : BusinessUiState()
     data class Error(val message: String) : BusinessUiState()
@@ -21,7 +22,8 @@ sealed class BusinessUiState {
 
 data class BusinessProfile(
     val isBusiness: Boolean = false,
-    val services: List<String> = emptyList()
+    val services: List<String> = emptyList(),
+    val manager: String? = null
 )
 
 class BusinessViewModel : ViewModel() {
@@ -44,18 +46,58 @@ class BusinessViewModel : ViewModel() {
                 return@launch
             }
 
+
             try {
                 val document = db.collection("users").document(userId).get().await()
-                val isBusiness = document.getBoolean("business.isBusiness") ?: false
-                if (isBusiness) {
-                    @Suppress("UNCHECKED_CAST")
-                    val services = document.get("business.services") as? List<String> ?: emptyList()
-                    _uiState.value = BusinessUiState.IsBusiness(BusinessProfile(isBusiness = true, services = services))
+                val userProfile = document.toObject(UserProfile::class.java)
+
+                val businessDetails = userProfile?.business
+                if (businessDetails != null && businessDetails.isBusiness) {
+                    val profile = BusinessProfile(
+                        isBusiness = true,
+                        services = businessDetails.services,
+                        manager = businessDetails.manager
+                    )
+
+                    if (businessDetails.manager.isNullOrBlank()) {
+                        _uiState.value = BusinessUiState.NeedsManagerSetup(profile)
+                    } else {
+                        _uiState.value = BusinessUiState.IsBusiness(profile)
+                    }
+
+
                 } else {
                     _uiState.value = BusinessUiState.NotABusiness
                 }
             } catch (e: Exception) {
                 _uiState.value = BusinessUiState.Error("Failed to fetch user data: ${e.message}")
+                Log.e("BusinessViewModel", "Error in checkUserBusinessStatus", e)
+            }
+        }
+    }
+
+    fun saveManagerName(managerName: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val userId = auth.currentUser?.uid
+            if (userId == null) {
+                onResult(false, "User not logged in.")
+                return@launch
+            }
+
+            if (managerName.isBlank()) {
+                onResult(false, "Manager name cannot be empty.")
+                return@launch
+            }
+
+            val userDocRef = db.collection("users").document(userId)
+
+            try {
+                userDocRef.update("business.manager", managerName).await()
+                checkUserBusinessStatus()
+                onResult(true, null)
+            } catch (e: Exception) {
+                Log.e("BusinessViewModel", "Error saving manager name", e)
+                onResult(false, "Failed to save manager name: ${e.message}")
             }
         }
     }

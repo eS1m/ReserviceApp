@@ -1,5 +1,6 @@
 package com.example.firebaseauthtesting.Pages
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,7 +71,8 @@ fun ProfileRequestsScreen(
                         Text("You have not made any requests.", color = Color.Gray)
                     } else {
                         SentRequestList(
-                            requests = state.requests
+                            requests = state.requests,
+                            requestsViewModel = requestsViewModel
                         )
                     }
                 }
@@ -82,6 +84,7 @@ fun ProfileRequestsScreen(
 @Composable
 fun SentRequestList(
     requests: List<ServiceRequest>,
+    requestsViewModel: ProfileRequestsViewModel
 ) {
     val context = LocalContext.current
 
@@ -93,6 +96,7 @@ fun SentRequestList(
         items(requests) { request ->
             SentRequestItemCard(
                 request = request,
+                requestsViewModel = requestsViewModel
             )
         }
     }
@@ -101,13 +105,17 @@ fun SentRequestList(
     @Composable
     fun SentRequestItemCard(
         request: ServiceRequest,
+        requestsViewModel: ProfileRequestsViewModel
     ) {
         val statusColor = when (request.status) {
-            "Accepted" -> Color(0xFF2E7D32) // Dark Green
-            "Declined" -> Color(0xFFC62828) // Dark Red
-            "Paid" -> Color(0xFF1565C0) // Blue for Paid
+            "Accepted" -> Color(0xFF2E7D32)
+            "Declined" -> Color(0xFFC62828)
+            "Paid" -> Color(0xFF1565C0)
+            "Cancelled" -> Color(0xFFdad7cd)
             else -> Color.Gray
         }
+
+        val context = LocalContext.current
 
         Card(elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -139,6 +147,20 @@ fun SentRequestList(
                     color = Color.Gray
                 )
 
+                if (request.status.equals("pending", ignoreCase = true)) {
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            requestsViewModel.cancelRequest(request.requestId) { success, message ->
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Cancel Request")
+                    }
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.example.firebaseauthtesting.ViewModels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.firebaseauthtesting.Models.ServiceRequest
@@ -64,6 +65,24 @@ class RequestsViewModel : ViewModel() {
                 db.collection("requests").document(requestId).update("status", newStatus).await()
             } catch (e: Exception) {
 
+            }
+        }
+    }
+
+    fun cancelRequest(requestId: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            if (requestId.isBlank()) {
+                onResult(false, "Invalid request ID.")
+                return@launch
+            }
+
+            try {
+                updateRequestStatus(requestId, "Cancelled")
+                onResult(true, "Request successfully cancelled.")
+
+            } catch (e: Exception) {
+                Log.e("RequestsViewModel", "Error in cancelRequest", e)
+                onResult(false, "Failed to cancel request: ${e.message}")
             }
         }
     }

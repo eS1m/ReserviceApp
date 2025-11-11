@@ -97,6 +97,13 @@ fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
             )
             Spacer(Modifier.height(4.dp))
 
+            Text(
+                "Status: ${request.status}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+
             request.scheduledDateTime?.let { scheduledTime ->
                 Text(
                     text = "Requested for: ${formatScheduledTimestamp(scheduledTime)}",
@@ -107,11 +114,6 @@ fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            Text(
-                "Status: ${request.status}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
             Spacer(Modifier.height(8.dp))
 
             if (request.status == "Accepted") {
@@ -142,7 +144,6 @@ fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    // --- 3. FIX THE onClick ACTIONS ---
                     Button(
                         onClick = { viewModel.updateRequestStatus(request.requestId, "Accepted") },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))

@@ -204,11 +204,11 @@ fun MapViewContainer(
                         val descriptionView: TextView = mView.findViewById(R.id.bubble_description)
                         val requestButton: Button = mView.findViewById(R.id.bubble_request_button)
 
-                        titleView.text = business.fullName
-                        Log.d("InfoWindowDebug", "Business: ${business.fullName}, Services: ${business.services}")
+                        val managerView: TextView = mView.findViewById(R.id.bubble_manager)
 
-                        val servicesText = business.services.joinToString(", ")
-                        descriptionView.text = mapView.context.getString(R.string.services_description, servicesText)
+                        titleView.text = business.fullName
+                        managerView.text = "Managed by: ${business.manager}" // Get manager name from BusinessMarker
+                        descriptionView.text = "Services: ${business.services.joinToString(", ")}"
 
                         requestButton.setOnClickListener {
                             selectedBusiness = business

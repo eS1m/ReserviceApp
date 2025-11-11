@@ -20,7 +20,8 @@ data class BusinessMarker(
     val uid: String,
     val fullName: String,
     val location: GeoPoint,
-    val services: List<String> = emptyList()
+    val services: List<String> = emptyList(),
+    val manager: String = ""
 )
 
 // UI State for the map screen
@@ -48,8 +49,8 @@ class BusinessMapViewModel : ViewModel() {
             }
             try {
                 val querySnapshot = db.collection("users")
-                    .whereEqualTo("business.isBusiness", true) // Correct path
-                    .whereArrayContains("business.services", serviceCategory) // Correct path
+                    .whereEqualTo("business.isBusiness", true)
+                    .whereArrayContains("business.services", serviceCategory)
                     .whereNotEqualTo(FieldPath.documentId(), currentUserId)
                     .get()
                     .await()
@@ -64,8 +65,8 @@ class BusinessMapViewModel : ViewModel() {
                             uid = document.id,
                             fullName = userProfile.fullName,
                             location = userProfile.location,
-                            // Now this access is guaranteed to be safe.
-                            services = businessDetails.services
+                            services = businessDetails.services,
+                            manager = businessDetails.manager ?: "N/A"
                         )
                     } else {
                         Log.w("BusinessMapViewModel", "Failed to map document: ${document.id}")
@@ -104,7 +105,6 @@ class BusinessMapViewModel : ViewModel() {
                     userName = userName,
                     businessId = businessId,
                     serviceCategory = serviceCategory,
-                    // Pass the new data to the model
                     scheduledDateTime = scheduledDateTime
                 )
 

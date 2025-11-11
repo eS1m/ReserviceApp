@@ -1,6 +1,8 @@
+import android.widget.Toast
 import androidx.compose.foundation.background
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,8 +23,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -36,8 +40,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -64,6 +71,11 @@ fun Business(
     )
 
     val uiState by businessViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        businessViewModel.checkUserBusinessStatus()
+    }
 
     val interphasesFamily = FontFamily(
         Font(R.font.interphases)
@@ -129,7 +141,22 @@ fun Business(
         ) {
             when (val state = uiState) {
                 is BusinessUiState.Loading -> {
-                    CircularProgressIndicator(color = Color.White)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
+                }
+
+                is BusinessUiState.NeedsManagerSetup -> {
+                    ManagerSetupView(
+                        businessViewModel = businessViewModel,
+                        interphasesFamily = interphasesFamily,
+                        onSuccess = {
+                            Toast.makeText(context, "Manager saved!", Toast.LENGTH_SHORT).show()
+                        },
+                        onError = { errorMessage ->
+                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                        }
+                    )
                 }
 
                 is BusinessUiState.NotABusiness -> {
@@ -244,6 +271,83 @@ fun BusinessDashboard(
             enabled = selectedServices != profile.services
         ) {
             Text("Save Changes")
+        }
+    }
+}
+
+@Composable
+fun ManagerSetupView(
+    businessViewModel: BusinessViewModel,
+    interphasesFamily: FontFamily,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
+    var managerName by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp), // More padding to avoid edges
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Final Step",
+            fontFamily = interphasesFamily,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Please set up the name of the business manager to continue.",
+            color = Color.White.copy(alpha = 0.8f),
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        OutlinedTextField(
+            value = managerName,
+            onValueChange = { managerName = it },
+            label = { Text("Manager's Full Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                unfocusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                cursorColor = Color.White,
+                focusedLabelColor = Color.White,
+                unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                focusedIndicatorColor = Color.White,
+                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f)
+            )
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = {
+                isLoading = true
+                businessViewModel.saveManagerName(managerName) { success, error ->
+                    isLoading = false
+                    if (success) {
+                        onSuccess()
+                    } else {
+                        onError(error ?: "An unknown error occurred.")
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading && managerName.isNotBlank() // Disable button if loading or field is empty
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Save Manager Name")
+            }
         }
     }
 }
