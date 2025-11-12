@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import com.example.firebaseauthtesting.ViewModels.RequestsViewModel
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.util.Log
 import android.widget.DatePicker
 import com.google.firebase.Timestamp
@@ -195,7 +197,22 @@ fun MapViewContainer(
                     position = GeoPoint(business.location.latitude, business.location.longitude)
                     setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     // It's good practice to set an icon
-                    //icon = mapView.context.getDrawable(R.drawable.marker)
+                    val originalIcon = mapView.context.getDrawable(R.drawable.marker)
+
+                    if (originalIcon != null) {
+                        val bitmap = (originalIcon as? BitmapDrawable)?.bitmap
+
+                        if (bitmap != null) {
+                            val width = 48
+                            val height = 48
+
+                            val scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, false)
+
+                            icon = BitmapDrawable(mapView.resources, scaledBitmap)
+                        } else {
+                            icon = originalIcon
+                        }
+                    }
                 }
 
                 marker.infoWindow = object : InfoWindow(R.layout.layout_info_window, mapView) {
