@@ -86,4 +86,15 @@ class RequestsViewModel : ViewModel() {
             }
         }
     }
+
+    fun confirmPaymentReceived(requestId: String) {
+        viewModelScope.launch {
+            try {
+                updateRequestStatus(requestId, "Reservice Completed")
+                Log.d("RequestsViewModel", "Request $requestId moved to Reservice Completed.")
+            } catch (e: Exception) {
+                Log.e("RequestsViewModel", "Failed to confirm payment for $requestId", e)
+            }
+        }
+    }
 }

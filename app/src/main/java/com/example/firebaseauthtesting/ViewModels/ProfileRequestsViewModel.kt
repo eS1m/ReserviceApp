@@ -88,25 +88,30 @@ class ProfileRequestsViewModel : ViewModel() {
         }
     }
 
-    fun initiatePayment() {
+    fun initiatePayment(requestId: String) {
         viewModelScope.launch {
             val userId = auth.currentUser?.uid
             if (userId == null) {
                 _uiState.value = ProfileRequestsUiState.Error("User not logged in.")
                 return@launch
             }
+
             try {
                 val userDoc = db.collection("users").document(userId).get().await()
 
                 if (userDoc.contains("paymentMethod")) {
-                    Log.d("Payment", "User already has a payment method: ${userDoc.getString("paymentMethod")}")
-                    // TODO: Navigate to the full payment screen
+                    Log.d("Payment", "Payment method exists. Updating status.")
+                    db.collection("requests").document(requestId)
+                        .update("status", "Pending Payment")
+                        .await()
+
                 } else {
+
                     Log.d("Payment", "User needs to set up a payment method.")
                     _uiState.value = ProfileRequestsUiState.NeedsPaymentMethodSetup
                 }
             } catch (e: Exception) {
-                _uiState.value = ProfileRequestsUiState.Error("Failed to check payment status: ${e.message}")
+                _uiState.value = ProfileRequestsUiState.Error("Failed to initiate payment: ${e.message}")
             }
         }
     }

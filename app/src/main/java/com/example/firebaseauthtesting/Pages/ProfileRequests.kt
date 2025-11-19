@@ -145,6 +145,7 @@ fun SentRequestList(
             "Declined" -> Color(0xFFC62828)
             "Paid" -> Color(0xFF1565C0)
             "Cancelled" -> Color(0xFFdad7cd)
+            "Pending Payment" -> Color(0xFFF57F17)
             else -> Color.Gray
         }
 
@@ -184,7 +185,7 @@ fun SentRequestList(
                     Spacer(Modifier.height(16.dp))
                     Button(
                         onClick = {
-                            requestsViewModel.initiatePayment()
+                            requestsViewModel.initiatePayment(request.requestId)
                         },
                         modifier = Modifier.align(Alignment.End),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)

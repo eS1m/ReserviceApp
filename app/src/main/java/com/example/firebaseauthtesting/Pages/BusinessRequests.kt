@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -158,6 +159,32 @@ fun RequestItemCard(request: ServiceRequest, viewModel: RequestsViewModel) {
                         Text("Decline")
                     }
                 }
+            }
+
+            if (request.status.equals("Pending Payment", ignoreCase = true)) {
+                Button(
+                    onClick = {
+                        viewModel.confirmPaymentReceived(request.requestId)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2E7D32) // A confirmation green
+                    )
+                ) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = "Confirm Payment")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Payment Received")
+                }
+            }
+
+            if (request.status.equals("Reservice Completed", ignoreCase = true)) {
+                Text(
+                    "Service Completed and Paid",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.End)
+                )
             }
         }
     }
