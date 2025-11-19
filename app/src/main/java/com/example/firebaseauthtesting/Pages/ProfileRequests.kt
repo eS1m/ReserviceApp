@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,10 +29,18 @@ import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsUiState
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsViewModel
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Money
 import androidx.compose.ui.platform.LocalContext
 import com.example.firebaseauthtesting.ViewModels.AuthViewModel
 import com.example.firebaseauthtesting.Utils.formatScheduledTimestamp
 import com.example.firebaseauthtesting.Utils.formatTimestamp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +52,22 @@ fun ProfileRequestsScreen(
     val uiState by requestsViewModel.uiState.collectAsState()
     val userProfile by authViewModel.userProfile.collectAsState()
     val context = LocalContext.current
+
+    val showPaymentDialog = uiState is ProfileRequestsUiState.NeedsPaymentMethodSetup
+
+    if (showPaymentDialog) {
+        PaymentMethodDialog(
+            onDismiss = {
+                // Simply call the new function in the ViewModel
+                requestsViewModel.dismissPaymentDialog()
+            },
+            onSave = { method ->
+                requestsViewModel.savePaymentMethod(method) { success, message ->
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -74,6 +99,14 @@ fun ProfileRequestsScreen(
                             requests = state.requests,
                             requestsViewModel = requestsViewModel
                         )
+                    }
+                }
+                is ProfileRequestsUiState.NeedsPaymentMethodSetup -> {
+                    val requests = (uiState as? ProfileRequestsUiState.Success)?.requests
+                    if (!requests.isNullOrEmpty()) {
+                        SentRequestList(requests = requests, requestsViewModel = requestsViewModel)
+                    } else {
+                        Text("You have not made any requests.", color = Color.Gray)
                     }
                 }
             }
@@ -147,6 +180,19 @@ fun SentRequestList(
                     color = Color.Gray
                 )
 
+                if (request.status.equals("Accepted", ignoreCase = true)) {
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            requestsViewModel.initiatePayment()
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Pay Now")
+                    }
+                }
+
                 if (request.status.equals("pending", ignoreCase = true)) {
                     Spacer(Modifier.height(16.dp))
                     Button(
@@ -161,6 +207,52 @@ fun SentRequestList(
                         Text("Cancel Request")
                     }
                 }
+
+
             }
         }
     }
+
+@Composable
+fun PaymentMethodDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Set Up Payment",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Please select a payment method to continue.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = {
+                        onSave("Cash")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Money, contentDescription = "Cash Icon")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Pay with Cash")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
