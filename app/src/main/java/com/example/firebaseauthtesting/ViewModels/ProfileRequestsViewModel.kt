@@ -2,16 +2,16 @@ package com.example.firebaseauthtesting.ViewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.firestore.ktx.toObjects
+// We no longer need the ktx toObjects, but toObject is still useful
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.example.firebaseauthtesting.Models.ServiceRequest
 
 // A UI State sealed interface specifically for the ProfileRequests screen
 sealed interface ProfileRequestsUiState {
@@ -49,7 +49,10 @@ class ProfileRequestsViewModel : ViewModel() {
                     .get()
                     .await()
 
-                val requests = snapshot.toObjects<ServiceRequest>()
+                val requests = snapshot.documents.mapNotNull { document ->
+                    val request = document.toObject(ServiceRequest::class.java)
+                    request?.copy(id = document.id)
+                }
                 _uiState.value = ProfileRequestsUiState.Success(requests)
             } catch (e: Exception) {
                 _uiState.value = ProfileRequestsUiState.Error(e.message ?: "Failed to fetch sent requests.")
@@ -58,14 +61,20 @@ class ProfileRequestsViewModel : ViewModel() {
     }
 
     fun cancelRequest(requestId: String) {
+        // Prevent crash if an empty ID is somehow passed
+        if (requestId.isEmpty()) {
+            _uiState.value = ProfileRequestsUiState.Error("Invalid request ID.")
+            return
+        }
         viewModelScope.launch {
+            _uiState.value = ProfileRequestsUiState.Loading
             try {
                 db.collection("serviceRequests").document(requestId)
                     .update("status", "Cancelled")
                     .await()
                 fetchSentRequests()
             } catch (e: Exception) {
-                println("Error cancelling request: ${e.message}")
+                _uiState.value = ProfileRequestsUiState.Error(e.message ?: "Failed to cancel the request.")
             }
         }
     }

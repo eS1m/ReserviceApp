@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.firebaseauthtesting.ViewModels.AuthViewModel
@@ -49,21 +51,18 @@ fun BusinessDetailsSheet(
     }
 
     if (showSchedulingDialog) {
-        selectedBusiness?.let { business ->
-            SchedulingDialog(
-                onDismiss = { showSchedulingDialog = false },
-                onConfirm = { date, time ->
-                    detailsViewModel.createServiceRequest(
-                        businessId = business.uid,
-                        businessName = business.businessName,
-                        userName = fullName ?: "Anonymous",
-                        scheduledDate = date,
-                        scheduledTime = time
-                    )
-                    showSchedulingDialog = false
-                }
-            )
-        }
+        CustomSchedulingDialog(
+            onDismiss = { showSchedulingDialog = false },
+            onConfirm = { date: String, time: String ->
+                detailsViewModel.createServiceRequest(
+                    business = selectedBusiness!!,
+                    userName = if (fullName.isNullOrBlank()) "Anonymous" else fullName!!,
+                    scheduledDate = date,
+                    scheduledTime = time
+                )
+                showSchedulingDialog = false
+            }
+        )
     }
 
     LaunchedEffect(requestState) {
@@ -126,7 +125,6 @@ fun BusinessDetailsContent(
                             tint = Color(0xFFFFC107), // Amber color for the star
                             modifier = Modifier.size(20.dp)
                         )
-                        // Format the rating to one decimal place
                         val formattedRating = DecimalFormat("#.#").format(details.rating)
                         Text(
                             text = formattedRating,
@@ -142,7 +140,6 @@ fun BusinessDetailsContent(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // FIX 1: Instead of duplicating logic, we now call the dedicated BusinessServices composable.
                 BusinessServices(services = details.services)
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -185,7 +182,6 @@ fun BusinessDetailsContent(
 
 @Composable
 fun ContactInfoRow(icon: ImageVector, text: String) {
-    // This check correctly hides the row if the contact info is blank, cleaning up the UI.
     if(text.isNotBlank()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -199,18 +195,157 @@ fun ContactInfoRow(icon: ImageVector, text: String) {
 fun BusinessServices(services: List<String>) {
     if (services.isNotEmpty()) {
         Column(
-            modifier = Modifier.fillMaxWidth() // Removed unnecessary padding to align with other content
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Services Offered:", // Changed text to be consistent
+                text = "Services Offered:",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = services.joinToString(", "),
-                style = MaterialTheme.typography.bodyLarge // Matched style for consistency
+                style = MaterialTheme.typography.bodyLarge
             )
         }
     }
 }
+
+// ... (Keep all the code from the top of the file down to the BusinessServices composable) ...
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomSchedulingDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    // --- STATE MANAGEMENT ---
+    val datePickerState = rememberDatePickerState()
+    val timePickerState = rememberTimePickerState()
+
+    // Visibility flags for the pickers
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    // Stored selections
+    var selectedDate by remember { mutableStateOf("") }
+    var selectedTime by remember { mutableStateOf("") }
+
+    // --- MAIN DIALOG ---
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Schedule a Reservice") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // "Date" button
+                Button(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (selectedDate.isBlank()) "Date" else "Date: $selectedDate")
+                }
+
+                // "Time" button
+                Button(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (selectedTime.isBlank()) "Time" else "Time: $selectedTime")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(selectedDate, selectedTime) },
+                // Request button is only enabled when both date and time are selected
+                enabled = selectedDate.isNotBlank() && selectedTime.isNotBlank()
+            ) {
+                Text("Request")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+
+    // --- DATE PICKER DIALOG ---
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDatePicker = false // Close the dialog
+                        // Format and store the selected date
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val formatter = java.text.SimpleDateFormat("EEE, MMM dd, yyyy", java.util.Locale.getDefault())
+                            selectedDate = formatter.format(millis)
+                        }
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            // The actual calendar picker
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker) {
+        TimePickerDialog(
+            onDismissRequest = { showTimePicker = false },
+            onConfirm = {
+                showTimePicker = false
+                val calendar = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
+                    set(java.util.Calendar.MINUTE, timePickerState.minute)
+                }
+                val formatter = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+                selectedTime = formatter.format(calendar.time)
+            }
+        ) {
+            TimePicker(state = timePickerState)
+        }
+    }
+}
+
+@Composable
+fun TimePickerDialog(
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                content() // This will be the TimePicker
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismissRequest) { Text("Cancel") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(onClick = onConfirm) { Text("OK") }
+                }
+            }
+        }
+    }
+}
+

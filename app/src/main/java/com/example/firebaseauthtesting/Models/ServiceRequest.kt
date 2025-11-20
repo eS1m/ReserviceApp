@@ -2,18 +2,19 @@ package com.example.firebaseauthtesting.Models
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
+import java.util.Date
 
 data class ServiceRequest(
-    val userId: String = "",
     val id: String = "",
+    val userId: String = "",
     val userName: String = "",
     val businessId: String = "",
     val businessName: String = "",
-    val status: String = "",
-    val scheduledDate: String? = null,
-    val scheduledTime: String? = null,
 
-    // --- APPLY THE FIX HERE ---
     @ServerTimestamp
-    val timestamp: Timestamp? = null
+    val timestamp: Date? = null,
+    val scheduledDate: String = "",
+    val scheduledTime: String = "",
+
+    val status: String = "Pending"
 )

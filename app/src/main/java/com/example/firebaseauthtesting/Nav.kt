@@ -57,14 +57,6 @@ fun MyAppNavigation(
         }
     } else {
 
-        val businessViewModel: BusinessViewModel = viewModel(
-            factory = object : ViewModelProvider.Factory {
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return BusinessViewModel(authViewModel) as T
-                }
-            }
-        )
-
         NavHost(
             navController = navController,
             startDestination = startDestination!!,
@@ -119,7 +111,6 @@ fun MyAppNavigation(
                 Business(
                     navController = navController,
                     authViewModel = authViewModel,
-                    businessViewModel = businessViewModel
                 )
             }
 
@@ -135,16 +126,11 @@ fun MyAppNavigation(
             }
 
             composable(Screen.BusinessRequests.route) {
-                BusinessRequestsScreen(
-                    navController = navController,
-                    businessViewModel = businessViewModel
-                )
+                BusinessRequests()
             }
 
             composable(Screen.ProfileRequests.route) {
-                ProfileRequestsScreen(
-                    navController = navController
-                )
+                ProfileRequests()
             }
         }
     }

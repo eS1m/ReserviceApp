@@ -39,13 +39,7 @@ fun Business(
     navController: NavController,
     authViewModel: AuthViewModel,
     // Use the factory to correctly initialize the ViewModel
-    businessViewModel: BusinessViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return BusinessViewModel(authViewModel) as T
-            }
-        }
-    )
+    businessViewModel: BusinessViewModel = viewModel()
 ) {
     val gradientColors = listOf(
         Color(0xFF1b4332),
@@ -121,13 +115,7 @@ fun Business(
                 is BusinessUiState.NeedsManagerSetup -> {
                     ManagerSetupView(
                         businessViewModel = businessViewModel,
-                        interphasesFamily = interphasesFamily,
-                        onSuccess = {
-                            Toast.makeText(context, "Manager saved!", Toast.LENGTH_SHORT).show()
-                        },
-                        onError = { errorMessage ->
-                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
-                        }
+                        interphasesFamily = interphasesFamily
                     )
                 }
                 is BusinessUiState.NotABusiness -> {
@@ -230,12 +218,9 @@ fun BusinessDashboard(
 @Composable
 fun ManagerSetupView(
     businessViewModel: BusinessViewModel,
-    interphasesFamily: FontFamily,
-    onSuccess: () -> Unit,
-    onError: (String) -> Unit
+    interphasesFamily: FontFamily
 ) {
     var managerName by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -264,24 +249,12 @@ fun ManagerSetupView(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
-                isLoading = true
-                businessViewModel.saveManagerName(managerName) { success, error ->
-                    isLoading = false
-                    if (success) {
-                        onSuccess()
-                    } else {
-                        onError(error ?: "An unknown error occurred.")
-                    }
-                }
+                businessViewModel.saveManagerName(managerName)
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && managerName.isNotBlank()
+            enabled = managerName.isNotBlank()
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.height(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-            } else {
-                Text("Save Manager Name")
-            }
+            Text("Save Manager Name")
         }
     }
 }
