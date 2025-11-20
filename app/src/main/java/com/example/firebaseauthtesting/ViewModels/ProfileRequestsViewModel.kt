@@ -1,136 +1,71 @@
 package com.example.firebaseauthtesting.ViewModels
 
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.firestore
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import androidx.lifecycle.ViewModel
-import com.example.firebaseauthtesting.Models.ServiceRequest
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.toObjects
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.toObjects
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.lifecycle.viewModelScope
-import android.util.Log
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import com.example.firebaseauthtesting.Models.ServiceRequest
 
-sealed class ProfileRequestsUiState {
-    object Loading : ProfileRequestsUiState()
-    data class Success(val requests: List<ServiceRequest>) : ProfileRequestsUiState()
-    data class Error(val message: String) : ProfileRequestsUiState()
-    object NeedsPaymentMethodSetup : ProfileRequestsUiState()
+// A UI State sealed interface specifically for the ProfileRequests screen
+sealed interface ProfileRequestsUiState {
+    object Loading : ProfileRequestsUiState
+    data class Success(val sentRequests: List<ServiceRequest>) : ProfileRequestsUiState
+    data class Error(val message: String) : ProfileRequestsUiState
 }
 
 class ProfileRequestsViewModel : ViewModel() {
+
     private val db = Firebase.firestore
     private val auth = Firebase.auth
+
     private val _uiState = MutableStateFlow<ProfileRequestsUiState>(ProfileRequestsUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
     init {
-        listenForUserRequests()
+        // Fetch the requests as soon as the ViewModel is created
+        fetchSentRequests()
     }
 
-    private fun listenForUserRequests() {
-        _uiState.value = ProfileRequestsUiState.Loading
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            _uiState.value = ProfileRequestsUiState.Error("You are not logged in.")
-            return
-        }
-
-        val query = db.collection("requests")
-            .whereEqualTo("userId", userId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-
-        query.addSnapshotListener { snapshot, e ->
-            if (e != null) {
-                _uiState.value = ProfileRequestsUiState.Error("Failed to listen for requests: ${e.message}")
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null) {
-                val requests = snapshot.toObjects<ServiceRequest>()
-                _uiState.value = ProfileRequestsUiState.Success(requests)
-            } else {
-                _uiState.value = ProfileRequestsUiState.Error("No data received.")
-            }
-        }
-    }
-
-    fun dismissPaymentDialog() {
-        val lastSuccessState = (_uiState.value as? ProfileRequestsUiState.Success)
-        if (lastSuccessState != null) {
-            _uiState.value = lastSuccessState
-        } else {
-            listenForUserRequests()
-        }
-    }
-
-    fun cancelRequest(requestId: String, onResult: (Boolean, String) -> Unit) {
+    fun fetchSentRequests() {
         viewModelScope.launch {
-            if (requestId.isBlank()) {
-                onResult(false, "Invalid request ID.")
-                return@launch
-            }
-
-            try {
-                db.collection("requests").document(requestId)
-                    .update("status", "cancelled")
-                    .await()
-
-                onResult(true, "Request successfully cancelled.")
-
-            } catch (e: Exception) {
-                Log.e("ProfileRequestsVM", "Error cancelling request", e)
-                onResult(false, "Failed to cancel request: ${e.message}")
-            }
-        }
-    }
-
-    fun initiatePayment(requestId: String) {
-        viewModelScope.launch {
-            val userId = auth.currentUser?.uid
-            if (userId == null) {
+            _uiState.value = ProfileRequestsUiState.Loading
+            val currentUser = auth.currentUser
+            if (currentUser == null) {
                 _uiState.value = ProfileRequestsUiState.Error("User not logged in.")
                 return@launch
             }
 
             try {
-                val userDoc = db.collection("users").document(userId).get().await()
+                val snapshot = db.collection("serviceRequests")
+                    .whereEqualTo("userId", currentUser.uid)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
 
-                if (userDoc.contains("paymentMethod")) {
-                    Log.d("Payment", "Payment method exists. Updating status.")
-                    db.collection("requests").document(requestId)
-                        .update("status", "Pending Payment")
-                        .await()
-
-                } else {
-
-                    Log.d("Payment", "User needs to set up a payment method.")
-                    _uiState.value = ProfileRequestsUiState.NeedsPaymentMethodSetup
-                }
+                val requests = snapshot.toObjects<ServiceRequest>()
+                _uiState.value = ProfileRequestsUiState.Success(requests)
             } catch (e: Exception) {
-                _uiState.value = ProfileRequestsUiState.Error("Failed to initiate payment: ${e.message}")
+                _uiState.value = ProfileRequestsUiState.Error(e.message ?: "Failed to fetch sent requests.")
             }
         }
     }
 
-    fun savePaymentMethod(method: String, onResult: (Boolean, String) -> Unit) {
+    fun cancelRequest(requestId: String) {
         viewModelScope.launch {
-            val userId = auth.currentUser?.uid
-            if (userId == null) {
-                onResult(false, "User not logged in.")
-                return@launch
-            }
             try {
-                db.collection("users").document(userId)
-                    .update("paymentMethod", method)
+                db.collection("serviceRequests").document(requestId)
+                    .update("status", "Cancelled")
                     .await()
-                _uiState.value = ProfileRequestsUiState.Success((uiState.value as? ProfileRequestsUiState.Success)?.requests ?: emptyList())
-                onResult(true, "Payment method saved!")
+                fetchSentRequests()
             } catch (e: Exception) {
-                onResult(false, "Failed to save payment method: ${e.message}")
+                println("Error cancelling request: ${e.message}")
             }
         }
     }

@@ -1,100 +1,63 @@
 package com.example.firebaseauthtesting.ViewModels
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.firebaseauthtesting.Models.ServiceRequest
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.firestore
-import com.google.firebase.firestore.toObjects
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-sealed class RequestsUiState {
-    object Loading : RequestsUiState()
-    data class Success(val requests: List<ServiceRequest>) : RequestsUiState()
-    data class Error(val message: String) : RequestsUiState()
-}
+// NOTE: ServiceRequest and RequestState are no longer defined here.
 
+// This ViewModel handles CREATING a request
 class RequestsViewModel : ViewModel() {
     private val db = Firebase.firestore
     private val auth = Firebase.auth
-    private val _uiState = MutableStateFlow<RequestsUiState>(RequestsUiState.Loading)
-    val uiState = _uiState.asStateFlow()
 
-    init {
-        listenForBusinessRequests()
-    }
+    private val _requestState = MutableStateFlow<RequestState>(RequestState.Idle)
+    val requestState: StateFlow<RequestState> = _requestState
 
-    private fun listenForBusinessRequests() {
-        _uiState.value = RequestsUiState.Loading
-        val businessId = auth.currentUser?.uid
-        if (businessId == null) {
-            _uiState.value = RequestsUiState.Error("Not logged in.")
+    fun createServiceRequest(businessId: String, businessName: String, userName: String) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            _requestState.value = RequestState.Error("You must be logged in to make a request.")
             return
         }
-        val query = db.collection("requests")
-            .whereEqualTo("businessId", businessId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
 
-        query.addSnapshotListener { snapshot, e ->
-            if (e != null) {
+        if (userName.isBlank() || userName == "Anonymous") {
+            _requestState.value = RequestState.Error("Cannot make request without a valid user name.")
+            return
+        }
 
-                _uiState.value = RequestsUiState.Error("Failed to listen for requests: ${e.message}")
-                return@addSnapshotListener
-            }
+        viewModelScope.launch {
+            _requestState.value = RequestState.Loading
+            try {
+                val newRequestRef = db.collection("serviceRequests").document()
 
-            if (snapshot != null) {
+                val request = ServiceRequest(
+                    id = newRequestRef.id,
+                    userId = currentUser.uid,
+                    userName = userName,
+                    businessId = businessId,
+                    businessName = businessName,
+                    status = "Pending",
+                    timestamp = Timestamp.now()
+                )
 
-                val requests = snapshot.toObjects<ServiceRequest>()
-                _uiState.value = RequestsUiState.Success(requests)
-            } else {
+                newRequestRef.set(request).await()
+                _requestState.value = RequestState.Success
 
-                _uiState.value = RequestsUiState.Error("No data received.")
+            } catch (e: Exception) {
+                _requestState.value = RequestState.Error(e.message ?: "An unknown error occurred.")
             }
         }
     }
 
-    fun updateRequestStatus(requestId: String, newStatus: String) {
-        viewModelScope.launch {
-            try {
-                db.collection("requests").document(requestId).update("status", newStatus).await()
-            } catch (e: Exception) {
-
-            }
-        }
-    }
-
-    fun cancelRequest(requestId: String, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            if (requestId.isBlank()) {
-                onResult(false, "Invalid request ID.")
-                return@launch
-            }
-
-            try {
-                updateRequestStatus(requestId, "Cancelled")
-                onResult(true, "Request successfully cancelled.")
-
-            } catch (e: Exception) {
-                Log.e("RequestsViewModel", "Error in cancelRequest", e)
-                onResult(false, "Failed to cancel request: ${e.message}")
-            }
-        }
-    }
-
-    fun confirmPaymentReceived(requestId: String) {
-        viewModelScope.launch {
-            try {
-                updateRequestStatus(requestId, "Reservice Completed")
-                Log.d("RequestsViewModel", "Request $requestId moved to Reservice Completed.")
-            } catch (e: Exception) {
-                Log.e("RequestsViewModel", "Failed to confirm payment for $requestId", e)
-            }
-        }
+    fun resetState() {
+        _requestState.value = RequestState.Idle
     }
 }

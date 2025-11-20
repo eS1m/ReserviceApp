@@ -3,116 +3,64 @@ package com.example.firebaseauthtesting.ViewModels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.firebaseauthtesting.Models.ServiceRequest
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.GeoPoint
-import com.google.firebase.firestore.firestore
+import com.example.firebaseauthtesting.Models.Business
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.toObjects
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FieldPath
-
-
-data class BusinessMarker(
-    val uid: String,
-    val fullName: String,
-    val location: GeoPoint,
-    val services: List<String> = emptyList(),
-    val manager: String = ""
-)
-
-// UI State for the map screen
-sealed class MapUiState {
-    object Loading : MapUiState()
-    data class Success(val businesses: List<BusinessMarker>) : MapUiState()
-    data class Error(val message: String) : MapUiState()
-}
 
 class BusinessMapViewModel : ViewModel() {
     private val db = Firebase.firestore
     private val auth = Firebase.auth
-    private val _uiState = MutableStateFlow<MapUiState>(MapUiState.Loading)
-    val uiState = _uiState.asStateFlow()
+
+    private val _businesses = MutableStateFlow<List<Business>>(emptyList())
+    val businesses = _businesses.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error = _error.asStateFlow()
 
 
-    fun fetchBusinessesByService(serviceCategory: String) {
+    fun fetchBusinesses(serviceCategory: String) {
         viewModelScope.launch {
-            _uiState.value = MapUiState.Loading
+            _isLoading.value = true
+            _error.value = null
 
             val currentUserId = auth.currentUser?.uid
             if (currentUserId == null) {
-                _uiState.value = MapUiState.Error("User not logged in.")
+                _error.value = "User not logged in. Cannot display businesses."
+                _isLoading.value = false
+                _businesses.value = emptyList()
+                Log.w("BusinessMapViewModel", "No user logged in.")
                 return@launch
             }
+
             try {
-                val querySnapshot = db.collection("users")
-                    .whereEqualTo("business.isBusiness", true)
-                    .whereArrayContains("business.services", serviceCategory)
-                    .whereNotEqualTo(FieldPath.documentId(), currentUserId)
+                Log.d("BusinessMapViewModel", "Fetching businesses for category: '$serviceCategory', excluding user: $currentUserId")
+
+                val result = db.collection("businesses")
+                    .whereArrayContains("services", serviceCategory)
+                    .whereNotEqualTo("uid", currentUserId)
                     .get()
                     .await()
 
-                val businessList = querySnapshot.documents.mapNotNull { document ->
-                    val userProfile = document.toObject(UserProfile::class.java)
+                val businessList = result.toObjects<Business>()
+                Log.d("BusinessMapViewModel", "Query successful. Found ${businessList.size} businesses.")
+                _businesses.value = businessList
+                Log.d("BusinessMapViewModel", "Successfully loaded ${businessList.size} businesses.")
 
-                    val businessDetails = userProfile?.business
-
-                    if (userProfile != null && businessDetails != null) {
-                        BusinessMarker(
-                            uid = document.id,
-                            fullName = userProfile.fullName,
-                            location = userProfile.location,
-                            services = businessDetails.services,
-                            manager = businessDetails.manager ?: "N/A"
-                        )
-                    } else {
-                        Log.w("BusinessMapViewModel", "Failed to map document: ${document.id}")
-                        null
-                    }
-                }
-                _uiState.value = MapUiState.Success(businessList)
-                Log.d("BusinessMapViewModel", "Found ${businessList.size} businesses for service '$serviceCategory'")
             } catch (e: Exception) {
-                _uiState.value = MapUiState.Error("Failed to fetch businesses: ${e.message}")
                 Log.e("BusinessMapViewModel", "Error fetching businesses", e)
-            }
-        }
-    }
-    fun createServiceRequest(
-        businessId: String,
-        serviceCategory: String,
-        scheduledDateTime: Timestamp,
-        onResult: (Boolean, String) -> Unit
-    ) {
-        viewModelScope.launch {
-            val currentUser = auth.currentUser
-            val userProfile = db.collection("users").document(currentUser!!.uid).get().await()
-            val userName = userProfile.getString("fullName") ?: "Unknown User"
-
-            if (currentUser == null) {
-                onResult(false, "You must be logged in to make a request.")
-                return@launch
-            }
-
-            try {
-                val newRequestRef = db.collection("requests").document()
-                val request = ServiceRequest(
-                    requestId = newRequestRef.id,
-                    userId = currentUser.uid,
-                    userName = userName,
-                    businessId = businessId,
-                    serviceCategory = serviceCategory,
-                    scheduledDateTime = scheduledDateTime
-                )
-
-                newRequestRef.set(request).await()
-                onResult(true, "Request successfully sent!")
-
-            } catch (e: Exception) {
-                onResult(false, "Error sending request: ${e.message}")
+                _error.value = "Failed to load businesses: ${e.message}"
+                _businesses.value = emptyList()
+            } finally {
+                _isLoading.value = false
             }
         }
     }

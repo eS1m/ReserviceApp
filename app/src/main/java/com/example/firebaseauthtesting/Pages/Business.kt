@@ -1,40 +1,15 @@
+package com.example.firebaseauthtesting.Pages
+
 import android.widget.Toast
 import androidx.compose.foundation.background
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Loop
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,23 +22,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.firebaseauthtesting.R
 import com.example.firebaseauthtesting.Screen
 import com.example.firebaseauthtesting.ViewModels.AuthViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.firebaseauthtesting.ViewModels.BusinessProfile
 import com.example.firebaseauthtesting.ViewModels.BusinessUiState
 import com.example.firebaseauthtesting.ViewModels.BusinessViewModel
-import kotlin.collections.remove
-import kotlin.collections.toMutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Business(
     navController: NavController,
     authViewModel: AuthViewModel,
-    businessViewModel: BusinessViewModel = viewModel()
+    // Use the factory to correctly initialize the ViewModel
+    businessViewModel: BusinessViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return BusinessViewModel(authViewModel) as T
+            }
+        }
+    )
 ) {
     val gradientColors = listOf(
         Color(0xFF1b4332),
@@ -73,23 +55,18 @@ fun Business(
     val uiState by businessViewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    // This will run when the composable first enters the screen
     LaunchedEffect(Unit) {
         businessViewModel.checkUserBusinessStatus()
     }
 
-    val interphasesFamily = FontFamily(
-        Font(R.font.interphases)
-    )
-    val pantonFamily = FontFamily(
-        Font(R.font.panton)
-    )
+    val interphasesFamily = FontFamily(Font(R.font.interphases))
+    val pantonFamily = FontFamily(Font(R.font.panton))
 
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(colors = gradientColors)
-            ),
+            .background(brush = Brush.verticalGradient(colors = gradientColors)),
         topBar = {
             TopAppBar(
                 title = {
@@ -114,17 +91,13 @@ fun Business(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = {
-                        navController.navigate(Screen.Home.route)
-                    }) {
+                    IconButton(onClick = { navController.navigate(Screen.Home.route) }) {
                         Icon(Icons.Outlined.Assignment, contentDescription = "Requests")
                     }
                     IconButton(onClick = { /*TODO*/ }) {
                         Icon(Icons.Outlined.Loop, contentDescription = "Reservices")
                     }
-                    IconButton(onClick = {
-                        navController.navigate(Screen.Profile.route)
-                    }) {
+                    IconButton(onClick = { navController.navigate(Screen.Profile.route) }) {
                         Icon(Icons.Outlined.Person, contentDescription = "Profile")
                     }
                 }
@@ -145,7 +118,6 @@ fun Business(
                         CircularProgressIndicator(color = Color.White)
                     }
                 }
-
                 is BusinessUiState.NeedsManagerSetup -> {
                     ManagerSetupView(
                         businessViewModel = businessViewModel,
@@ -158,7 +130,6 @@ fun Business(
                         }
                     )
                 }
-
                 is BusinessUiState.NotABusiness -> {
                     Text(
                         text = "You are currently not a business account",
@@ -174,15 +145,10 @@ fun Business(
                         color = Color.White
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            businessViewModel.upgradeToBusinessAccount()
-                        }
-                    ) {
+                    Button(onClick = { businessViewModel.upgradeToBusinessAccount() }) {
                         Text(text = "Become a Business")
                     }
                 }
-
                 is BusinessUiState.IsBusiness -> {
                     BusinessDashboard(
                         profile = state.profile,
@@ -193,8 +159,7 @@ fun Business(
                     )
                 }
                 is BusinessUiState.Error -> {
-                    val errorMessage = (uiState as BusinessUiState.Error).message
-                    Text(text = errorMessage, color = Color.Red)
+                    Text(text = state.message, color = Color.Red)
                 }
             }
         }
@@ -205,7 +170,8 @@ fun Business(
 fun BusinessDashboard(
     profile: BusinessProfile,
     onSave: (List<String>) -> Unit,
-    navController: NavController) {
+    navController: NavController
+) {
     val allServices = listOf("Utilities", "Home Repair", "Maid")
     var selectedServices by remember { mutableStateOf(profile.services) }
     LaunchedEffect(profile.services) {
@@ -219,20 +185,11 @@ fun BusinessDashboard(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "Your Business Dashboard",
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White
-        )
+        Text(text = "Your Business Dashboard", style = MaterialTheme.typography.headlineMedium, color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Select the services you offer:",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.White
-        )
+        Text(text = "Select the services you offer:", style = MaterialTheme.typography.titleMedium, color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Create a Checkbox for each service
         allServices.forEach { serviceName ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -245,7 +202,7 @@ fun BusinessDashboard(
                     onCheckedChange = { isChecked ->
                         val currentServices = selectedServices.toMutableList()
                         if (isChecked) {
-                            currentServices.add(serviceName)
+                            if (!currentServices.contains(serviceName)) currentServices.add(serviceName)
                         } else {
                             currentServices.remove(serviceName)
                         }
@@ -256,12 +213,7 @@ fun BusinessDashboard(
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick =
-                { navController.navigate(
-                    Screen.BusinessRequests.route)
-                }
-        ) {
+        Button(onClick = { navController.navigate(Screen.BusinessRequests.route) }) {
             Text("View Incoming Requests")
         }
 
@@ -288,23 +240,13 @@ fun ManagerSetupView(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(32.dp), // More padding to avoid edges
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Final Step",
-            fontFamily = interphasesFamily,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
+        Text("Final Step", fontFamily = interphasesFamily, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Please set up the name of the business manager to continue.",
-            color = Color.White.copy(alpha = 0.8f),
-            textAlign = TextAlign.Center
-        )
+        Text("Please set up the name of the business manager to continue.", color = Color.White.copy(alpha = 0.8f), textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(24.dp))
         OutlinedTextField(
             value = managerName,
@@ -313,15 +255,10 @@ fun ManagerSetupView(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             colors = TextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedContainerColor = Color.Black.copy(alpha = 0.2f),
-                unfocusedContainerColor = Color.Black.copy(alpha = 0.2f),
-                cursorColor = Color.White,
-                focusedLabelColor = Color.White,
-                unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-                focusedIndicatorColor = Color.White,
-                unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f)
+                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                focusedContainerColor = Color.Black.copy(alpha = 0.2f), unfocusedContainerColor = Color.Black.copy(alpha = 0.2f),
+                cursorColor = Color.White, focusedLabelColor = Color.White, unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                focusedIndicatorColor = Color.White, unfocusedIndicatorColor = Color.White.copy(alpha = 0.5f)
             )
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -338,13 +275,10 @@ fun ManagerSetupView(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && managerName.isNotBlank() // Disable button if loading or field is empty
+            enabled = !isLoading && managerName.isNotBlank()
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.height(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
+                CircularProgressIndicator(modifier = Modifier.height(24.dp), color = MaterialTheme.colorScheme.onPrimary)
             } else {
                 Text("Save Manager Name")
             }

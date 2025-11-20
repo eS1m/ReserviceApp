@@ -1,50 +1,32 @@
 package com.example.firebaseauthtesting.Pages
 
-import android.R.attr.enabled
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.firebaseauthtesting.ViewModels.AuthState
-import com.example.firebaseauthtesting.ViewModels.AuthViewModel
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import com.example.firebaseauthtesting.R
-import androidx.compose.runtime.livedata.observeAsState
 import com.example.firebaseauthtesting.Screen
+import com.example.firebaseauthtesting.ViewModels.AuthViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseUser
 
 @Composable
 fun Login(
@@ -52,36 +34,36 @@ fun Login(
     navController: NavController,
     authViewModel: AuthViewModel
 ) {
+    val gradientColors = listOf(Color(0xFF1b4332), Color(0xFF52b788))
+    val interphasesFamily = FontFamily(Font(R.font.interphases))
+    val pantonFamily = FontFamily(Font(R.font.panton))
 
-    //Coolors "Freshy Greens"
-    val gradientColors = listOf(
-        Color(0xFF1b4332),
-        Color(0xFF52b788)
-    )
-    val interphasesFamily = FontFamily(
-        Font(R.font.interphases)
-    )
-    val pantonFamily = FontFamily(
-        Font(R.font.panton)
-    )
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
-    var email by remember {
-        mutableStateOf("")
+    val context = LocalContext.current
+    val isLoading by authViewModel.isLoading.collectAsStateWithLifecycle()
+    val error by authViewModel.error.collectAsStateWithLifecycle()
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+
+    LaunchedEffect(error, currentUser) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            authViewModel.clearError()
+        }
+
+        currentUser?.let {
+            navController.navigate(Screen.Home.route) {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
     }
-    var password by remember {
-        mutableStateOf("")
-    }
-
-    var passwordVisible by remember {
-        mutableStateOf(false)
-    }
-
-    val authState by authViewModel.authState.collectAsState()
-
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(brush = Brush.verticalGradient(colors=gradientColors)),
+            .background(brush = Brush.verticalGradient(colors = gradientColors)),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -95,14 +77,8 @@ fun Login(
 
         OutlinedTextField(
             value = email,
-            onValueChange = {
-                email = it
-            },
-            label = {
-                Text(
-                    text = "Email",
-                    color = Color.White)
-            }
+            onValueChange = { email = it },
+            label = { Text("Email", color = Color.White) }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -110,27 +86,14 @@ fun Login(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = {
-                Text(
-                    text = "Password",
-                    color = Color.White
-                )
-                    },
+            label = { Text("Password", color = Color.White) },
             singleLine = true,
-            visualTransformation = if(passwordVisible)
-            { VisualTransformation.None }
-            else { PasswordVisualTransformation() },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             trailingIcon = {
-                val image = if (passwordVisible)
-                    Icons.Filled.Visibility
-                else Icons.Filled.VisibilityOff
-
-                val description = if (passwordVisible) "Hide password"
-                else "Show password"
-
-                IconButton(onClick = { passwordVisible = !passwordVisible }
-                ) {
+                val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                val description = if (passwordVisible) "Hide password" else "Show password"
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(imageVector = image, description)
                 }
             }
@@ -139,10 +102,20 @@ fun Login(
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { authViewModel.login(email.trim(),password) },
-            enabled = authState != AuthState.Loading) {
-            if (authState == AuthState.Loading) {
-                CircularProgressIndicator(modifier = Modifier.height(24.dp), Color.White)
+            onClick = {
+                if (email.isNotBlank() && password.isNotBlank()) {
+                    authViewModel.login(email.trim(), password)
+                } else {
+                    Toast.makeText(context, "Email and password cannot be empty", Toast.LENGTH_SHORT).show()
+                }
+            },
+            enabled = !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             } else {
                 Text(text = "Login", fontFamily = pantonFamily)
             }

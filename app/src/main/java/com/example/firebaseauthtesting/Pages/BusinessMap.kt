@@ -1,335 +1,164 @@
 package com.example.firebaseauthtesting.Pages
 
-import com.example.firebaseauthtesting.R
-import android.content.Context
-import android.widget.TextView
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import android.Manifest
+import android.util.Log
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.firebaseauthtesting.ViewModels.AuthViewModel
+import com.example.firebaseauthtesting.Composables.OpenStreetMap
+import com.example.firebaseauthtesting.Models.Business
 import com.example.firebaseauthtesting.ViewModels.BusinessMapViewModel
-import com.example.firebaseauthtesting.ViewModels.BusinessMarker
-import com.example.firebaseauthtesting.ViewModels.MapUiState
-import com.example.firebaseauthtesting.ViewModels.UserProfile
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.android.gms.location.LocationServices
 import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.infowindow.InfoWindow
-import android.widget.Button
-import android.widget.Toast
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import com.example.firebaseauthtesting.ViewModels.RequestsViewModel
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
-import android.util.Log
-import android.widget.DatePicker
-import com.google.firebase.Timestamp
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
+import com.example.firebaseauthtesting.Pages.BusinessDetailsSheet
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Renamed to BusinessMapScreen to match the file name.
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun BusinessMapScreen(
     navController: NavController,
-    authViewModel: AuthViewModel,
-    mapViewModel: BusinessMapViewModel = viewModel(),
-    requestViewModel: RequestsViewModel = viewModel(),
-    serviceCategory: String
+    serviceCategory: String,
+    // Use the correct ViewModel we created for this screen's logic.
+    mapViewModel: BusinessMapViewModel = viewModel()
 ) {
-    val uiState by mapViewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val userProfile by authViewModel.userProfile.collectAsState()
+    // Collect the state from the correct ViewModel
+    val businesses by mapViewModel.businesses.collectAsStateWithLifecycle()
+    val isLoading by mapViewModel.isLoading.collectAsStateWithLifecycle()
+    val error by mapViewModel.error.collectAsStateWithLifecycle()
 
+    var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    var showSheet by remember { mutableStateOf(false) }
+    var selectedBusiness by remember { mutableStateOf<Business?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // This composable handles getting the user's current location
+    RememberDeviceLocation { location ->
+        userLocation = location
+    }
+
+    // This is the crucial effect that triggers data fetching.
+    // It runs when the screen appears or if the serviceCategory changes.
     LaunchedEffect(serviceCategory) {
-        mapViewModel.fetchBusinessesByService(serviceCategory)
+        if (serviceCategory.isNotBlank()) {
+            mapViewModel.fetchBusinesses(serviceCategory)
+        }
+    }
+
+    // This is the list of pairs that OpenStreetMap now expects.
+    val mapBusinesses = remember(businesses) {
+        businesses.mapNotNull { business ->
+            business.location?.let { firestoreGeoPoint ->
+                Pair(
+                    GeoPoint(firestoreGeoPoint.latitude, firestoreGeoPoint.longitude),
+                    business
+                )
+            }
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("$serviceCategory Near You", color = Color.White) },
-                navigationIcon = {
-
-                    IconButton(onClick = {
-                        navController.popBackStack()
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
+                title = { Text(text = "$serviceCategory Near You") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF1b4332)
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
         Box(
             modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .padding(padding),
             contentAlignment = Alignment.Center
         ) {
-            when (val state = uiState) {
-                is MapUiState.Loading -> {
+            when {
+                // Show a loading indicator while fetching businesses OR getting user location.
+                isLoading || userLocation == null -> {
                     CircularProgressIndicator()
                 }
-                is MapUiState.Success -> {
-                    MapViewContainer(
-                        modifier = Modifier.padding(innerPadding),
-                        businesses = state.businesses,
-                        userProfile = userProfile,
-                        serviceCategory = serviceCategory,
-                        mapViewModel = mapViewModel,
-                        navController = navController,
-                        onResult = { message ->
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        }
+                // Show an error message if one occurred.
+                error != null -> {
+                    Text(text = "Error: $error")
+                }
+                // Once we have data and location, show the map.
+                else -> {
+                    OpenStreetMap(
+                        modifier = Modifier.fillMaxSize(),
+                        // Pass the correctly transformed list of pairs.
+                        businesses = businesses,
+                        onMarkerClick = { business ->
+                            selectedBusiness = business
+                            showSheet = true
+                        },
+                        // Start the map at the user's location, with a fallback.
+                        startPoint = userLocation ?: GeoPoint(40.7128, -74.0060)
                     )
                 }
-                is MapUiState.Error -> {
-                    Text(text = state.message, color = Color.Red)
-                }
             }
+        }
+    }
+
+    // This is the bottom sheet for showing business details.
+    if (showSheet && selectedBusiness != null) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            sheetState = sheetState
+        ) {
+            BusinessDetailsSheet(
+                businessId = selectedBusiness!!.uid
+            )
         }
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun MapViewContainer(
-    modifier: Modifier = Modifier,
-    businesses: List<BusinessMarker>,
-    userProfile: UserProfile?,
-    serviceCategory: String,
-    mapViewModel: BusinessMapViewModel,
-    navController: NavController,
-    onResult: (String) -> Unit
-) {
-    var showDialog by remember { mutableStateOf(false) }
-    var selectedBusiness by remember { mutableStateOf<BusinessMarker?>(null) }
-
-    if (showDialog && selectedBusiness != null) {
-        val business = selectedBusiness!!
-        ScheduleRequestDialog(
-            onDismiss = { showDialog = false },
-            onConfirm = { scheduledDateTime ->
-                mapViewModel.createServiceRequest(
-                    businessId = business.uid,
-                    serviceCategory = serviceCategory,
-                    scheduledDateTime = scheduledDateTime
-                ) { success, message ->
-
-                    onResult(message)
-
-                    if (success) {
-                        navController.navigate("home") {
-
-                            popUpTo(navController.graph.startDestinationId) {
-                                inclusive = true
-                            }
-                            launchSingleTop = true
-                        }
-                    }
-                }
-                showDialog = false
-            }
-        )
-    }
-    AndroidView(
-        modifier = modifier.fillMaxSize(),
-        factory = { context ->
-            Configuration.getInstance().load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-
-            MapView(context).apply {
-                setTileSource(TileSourceFactory.MAPNIK)
-                setMultiTouchControls(true)
-
-                val startCenter = if (userProfile != null) {
-                    GeoPoint(userProfile.location.latitude, userProfile.location.longitude)
-                } else {
-                    GeoPoint(40.0, -95.0)
-                }
-                controller.setZoom(12.0)
-                controller.setCenter(startCenter)
-            }
-        },
-        update = { mapView ->
-            mapView.overlays.removeAll { it is Marker }
-
-            businesses.forEach { business ->
-                val marker = Marker(mapView).apply {
-                    position = GeoPoint(business.location.latitude, business.location.longitude)
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    // It's good practice to set an icon
-                    val originalIcon = mapView.context.getDrawable(R.drawable.marker)
-
-                    if (originalIcon != null) {
-                        val bitmap = (originalIcon as? BitmapDrawable)?.bitmap
-
-                        if (bitmap != null) {
-                            val width = 48
-                            val height = 48
-
-                            val scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, false)
-
-                            icon = BitmapDrawable(mapView.resources, scaledBitmap)
-                        } else {
-                            icon = originalIcon
-                        }
-                    }
-                }
-
-                marker.infoWindow = object : InfoWindow(R.layout.layout_info_window, mapView) {
-                    override fun onOpen(item: Any?) {
-                        val titleView: TextView = mView.findViewById(R.id.bubble_title)
-                        val descriptionView: TextView = mView.findViewById(R.id.bubble_description)
-                        val requestButton: Button = mView.findViewById(R.id.bubble_request_button)
-
-                        val managerView: TextView = mView.findViewById(R.id.bubble_manager)
-
-                        titleView.text = business.fullName
-                        managerView.text = "Managed by: ${business.manager}" // Get manager name from BusinessMarker
-                        descriptionView.text = "Services: ${business.services.joinToString(", ")}"
-
-                        requestButton.setOnClickListener {
-                            selectedBusiness = business
-                            showDialog = true
-                            close()
-                        }
-                    }
-                    override fun onClose() {
-                        // No special action needed here.
-                    }
-                }
-
-                marker.setOnMarkerClickListener { clickedMarker, _ ->
-                    if (clickedMarker.isInfoWindowShown) {
-                        clickedMarker.closeInfoWindow()
-                    } else {
-                        clickedMarker.showInfoWindow()
-                    }
-                    true
-                }
-
-
-                mapView.overlays.add(marker)
-            }
-            mapView.invalidate()
-        }
-    )
-}
-
-@Composable
-fun ScheduleRequestDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (Timestamp) -> Unit
-) {
+private fun RememberDeviceLocation(onLocationGranted: (GeoPoint) -> Unit) {
     val context = LocalContext.current
-    val calendar = Calendar.getInstance()
-
-    var selectedYear by remember { mutableStateOf(calendar.get(Calendar.YEAR)) }
-    var selectedMonth by remember { mutableStateOf(calendar.get(Calendar.MONTH)) }
-    var selectedDay by remember { mutableStateOf(calendar.get(Calendar.DAY_OF_MONTH)) }
-    var selectedHour by remember { mutableStateOf(-1) }
-
-    val timePickerDialog = TimePickerDialog(
-        context,
-        { _, hour: Int, _: Int ->
-            selectedHour = hour
-
-        },
-        calendar.get(Calendar.HOUR_OF_DAY),
-        0,
-        false
+    val locationPermissions = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
     )
 
-    // --- Date Picker Dialog ---
-    val datePickerDialog = DatePickerDialog(
-        context,
-        { _: DatePicker, year: Int, month: Int, dayOfMonth: Int ->
-            selectedYear = year
-            selectedMonth = month
-            selectedDay = dayOfMonth
-            timePickerDialog.show()
-        },
-        selectedYear,
-        selectedMonth,
-        selectedDay
-    )
-    datePickerDialog.datePicker.minDate = System.currentTimeMillis() - 1000
+    // Trigger permission request if not granted.
+    LaunchedEffect(Unit) {
+        if (!locationPermissions.allPermissionsGranted) {
+            locationPermissions.launchMultiplePermissionRequest()
+        }
+    }
 
-    AlertDialog(
-        onDismissRequest = { onDismiss() },
-        title = { Text("Schedule Service") },
-        text = {
-            Column {
-                Text("Please select a date and time for the service.")
-                Spacer(Modifier.height(16.dp))
-                val buttonText = if (selectedHour != -1) {
-                    val tempCal = Calendar.getInstance().apply { set(selectedYear, selectedMonth, selectedDay, selectedHour, 0) }
-                    SimpleDateFormat("MMM dd, hh:00 a", Locale.getDefault()).format(tempCal.time)
-                } else {
-                    "Click to pick a Date & Time"
-                }
-
-                androidx.compose.material3.Button(onClick = { datePickerDialog.show() }) {
-                    Text(buttonText)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val finalCalendar = Calendar.getInstance().apply {
-                        set(selectedYear, selectedMonth, selectedDay, selectedHour, 0, 0)
+    // Fetch location once permissions are granted.
+    LaunchedEffect(locationPermissions.allPermissionsGranted) {
+        if (locationPermissions.allPermissionsGranted) {
+            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                    if (location != null) {
+                        onLocationGranted(GeoPoint(location.latitude, location.longitude))
+                    } else {
+                        onLocationGranted(GeoPoint(40.7128, -74.0060)) // Fallback
                     }
-                    onConfirm(Timestamp(finalCalendar.time))
-                },
-                enabled = selectedHour != -1
-            ) {
-                Text("Confirm Request")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { onDismiss() }) {
-                Text("Cancel")
+                }.addOnFailureListener {
+                    onLocationGranted(GeoPoint(40.7128, -74.0060)) // Fallback on error
+                }
+            } catch (e: SecurityException) {
+                // This should not happen if permissions are granted, but it's a safe catch.
+                Log.e("Location", "Location permission check failed.", e)
             }
         }
-    )
+    }
 }

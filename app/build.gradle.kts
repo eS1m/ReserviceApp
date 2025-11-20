@@ -68,6 +68,7 @@ dependencies {
     val osmdroidVersion = "6.1.20"
     implementation("org.osmdroid:osmdroid-android:$osmdroidVersion")
 
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
@@ -76,5 +77,7 @@ dependencies {
     
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+
+    implementation("androidx.appcompat:appcompat:1.7.0")
 
 }
