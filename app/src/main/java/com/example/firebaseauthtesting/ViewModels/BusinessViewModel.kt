@@ -132,33 +132,36 @@ class BusinessViewModel : ViewModel() {
         }
     }
 
-    // --- Functions for BusinessRequests.kt (No changes needed here) ---
-
     fun fetchIncomingRequests() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val currentUser = auth.currentUser ?: run {
-                _error.value = "Business user not logged in."
+        _isLoading.value = true
+        val currentUser = auth.currentUser ?: run {
+            _error.value = "Business user not logged in."
+            _isLoading.value = false
+            return
+        }
+
+        val query = db.collection("serviceRequests")
+            .whereEqualTo("businessId", currentUser.uid)
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+
+
+        query.addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                _error.value = "Failed to listen for requests: ${e.message}"
                 _isLoading.value = false
-                return@launch
+                return@addSnapshotListener
             }
-            try {
-                val snapshot = db.collection("serviceRequests")
-                    .whereEqualTo("businessId", currentUser.uid)
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+
+            if (snapshot != null) {
                 val requests = snapshot.documents.mapNotNull { document ->
                     val request = document.toObject(ServiceRequest::class.java)
                     request?.copy(id = document.id)
                 }
                 _incomingRequests.value = requests
                 _error.value = null
-            } catch (e: Exception) {
-                _error.value = "Failed to fetch incoming requests: ${e.message}"
-            } finally {
-                _isLoading.value = false
             }
+
+            _isLoading.value = false
         }
     }
 
@@ -168,11 +171,9 @@ class BusinessViewModel : ViewModel() {
             return
         }
         viewModelScope.launch {
-            _isLoading.value = true
             try {
                 db.collection("serviceRequests").document(requestId)
                     .update("status", newStatus).await()
-                fetchIncomingRequests()
             } catch (e: Exception) {
                 _error.value = "Failed to update status: ${e.message}"
             }

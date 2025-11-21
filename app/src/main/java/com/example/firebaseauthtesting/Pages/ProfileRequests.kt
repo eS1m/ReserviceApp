@@ -3,10 +3,14 @@ package com.example.firebaseauthtesting.Pages
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Money
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.firebaseauthtesting.Models.ServiceRequest
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsUiState
@@ -32,18 +37,26 @@ fun ProfileRequests(
     onPayAction: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showDialog by viewModel.showPaymentDialog.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchSentRequests()
     }
 
-    // Main layout column
+    if (showDialog) {
+        PaymentMethodDialog(
+            onDismiss = { viewModel.dismissPaymentDialog() },
+            onPaymentSelected = { method ->
+                viewModel.setPaymentMethodAndProceed(method)
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // --- TITLE IS NOW OUTSIDE THE CARD ---
         Text(
             "My Service Requests",
             style = MaterialTheme.typography.headlineMedium,
@@ -51,7 +64,6 @@ fun ProfileRequests(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- CARD NOW WRAPS ONLY THE REQUESTS LIST AND ITS STATES ---
         Card(
             modifier = Modifier.fillMaxSize(),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -77,7 +89,7 @@ fun ProfileRequests(
                                 UserRequestCard(
                                     request = request,
                                     onCancel = { viewModel.cancelRequest(request.id) },
-                                    onPay = { viewModel.submitPayment(request.id) }
+                                    onPay = { viewModel.checkAndInitiatePayment(request.id) }
                                 )
                             }
                         }
@@ -87,6 +99,55 @@ fun ProfileRequests(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentMethodDialog(
+    onDismiss: () -> Unit,
+    onPaymentSelected: (String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Choose Payment",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .clickable { onPaymentSelected("Cash") }
+                        .padding(vertical = 16.dp, horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Money,
+                        contentDescription = "Cash Icon",
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text("Cash", style = MaterialTheme.typography.bodyLarge)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
                 }
             }
         }
@@ -165,45 +226,45 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun StatusTracker(status: String) {
-    // Define the progress for each step
     val progress = when (status) {
-        "Pending", "Pending Payment" -> 0.1f
-        "Accepted" -> 0.5f
-        "Completed" -> 1.0f
-        else -> 0.0f // No progress for other statuses
+        "Pending" -> 0.2f
+        "Accepted" -> 0.4f
+        "Pending Payment" -> 0.6f
+        "Confirming Payment" -> 0.8f
+        "Reservice Accomplished!", "Completed" -> 1.0f
+        else -> 0.0f
     }
 
-    // Define the color based on the status using your specified hex codes
     val statusColor = when (status) {
-        "Accepted" -> Color(0xFF49a078)
-        "Declined" -> Color(0xFFe5383b)
-        "Cancelled" -> Color(0xFF48cae4)
-        else -> MaterialTheme.colorScheme.primary // Default color for Pending/Completed
+        "Accepted" -> Color(0xFF386641)
+        "Declined" -> Color(0xFFef233c)
+        "Cancelled" -> Color(0xFFd5bdaf)
+        "Pending Payment" -> Color(0xFFfb8500)
+        "Confirming Payment" -> Color(0xFF0096c7)
+        "Reservice Accomplished!" -> Color(0xFFccff33)
+        else -> MaterialTheme.colorScheme.primary
     }
 
-    // Define the display text for the status
     val statusText = when (status) {
         "Declined" -> "Declined by Business"
         "Cancelled" -> "Cancelled by You"
         "Pending Payment" -> "Pending Payment"
+        "Confirming Payment" -> "Confirming Payment"
+        "Reservice Accomplished!" -> "Reservice Accomplished!"
         else -> status
     }
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        // --- THIS IS THE FIX ---
-        // Apply the statusColor to the Text composable
         Text(
             text = "Status: $statusText",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
-            color = statusColor // Apply the dynamic color here
+            color = statusColor
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Show the progress bar only for "in-progress" statuses
-        if (status in listOf("Pending", "Accepted", "Completed", "Pending Payment")) {
-            // Animate the progress change
+        if (status in listOf("Pending", "Accepted", "Completed", "Pending Payment", "Confirming Payment", "Reservice Accomplished!")) {
             val animatedProgress by animateFloatAsState(
                 targetValue = progress,
                 animationSpec = tween(durationMillis = 500),
@@ -215,8 +276,8 @@ private fun StatusTracker(status: String) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
-                    .clip(CircleShape), // Gives the bar rounded edges
-                color = statusColor, // The bar color should also match
+                    .clip(CircleShape),
+                color = statusColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
