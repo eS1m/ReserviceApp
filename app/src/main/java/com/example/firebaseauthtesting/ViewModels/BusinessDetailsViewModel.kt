@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// FIX: Rename this sealed class to avoid redeclaration error.
 sealed class ServiceRequestState {
     object Idle : ServiceRequestState()
     object Loading : ServiceRequestState()

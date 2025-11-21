@@ -1,5 +1,6 @@
 package com.example.firebaseauthtesting.Pages
 
+import AddReviewDialog
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -26,18 +27,64 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.firebaseauthtesting.Models.ServiceRequest
+import com.example.firebaseauthtesting.ViewModels.AuthViewModel
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsUiState
 import com.example.firebaseauthtesting.ViewModels.ProfileRequestsViewModel
+import com.example.firebaseauthtesting.viewModel.AddReviewViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Composable
 fun ProfileRequests(
     viewModel: ProfileRequestsViewModel = viewModel(),
-    onPayAction: (String) -> Unit = {}
+    authViewModel: AuthViewModel = viewModel(),
+    addReviewViewModel: AddReviewViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val showDialog by viewModel.showPaymentDialog.collectAsState()
+
+    val fullName by authViewModel.fullName.collectAsState()
+
+    val showReviewDialog by viewModel.showReviewDialog.collectAsState()
+    val requestToReview by viewModel.requestToReview.collectAsState()
+    val rating by viewModel.reviewRating.collectAsState()
+    val comment by viewModel.reviewComment.collectAsState()
+    val reviewSubmissionState by addReviewViewModel.submissionState.collectAsState()
+
+    if (showReviewDialog && requestToReview != null) {
+        AddReviewDialog(
+            rating = rating,
+            comment = comment,
+            onRatingChange = viewModel::onRatingChange,
+            onCommentChange = viewModel::onCommentChange,
+            onDismissRequest = {
+                viewModel.onDismissReviewDialog()
+                addReviewViewModel.resetState() // Reset submission state on dismiss
+            },
+            onReviewSubmit = { submittedRating, submittedComment ->
+                val currentUser = authViewModel.currentUser.value
+                // Ensure all data is available before submitting
+                if (currentUser != null && fullName != null && requestToReview != null) {
+                    addReviewViewModel.submitReview(
+                        businessId = requestToReview!!.businessId,
+                        businessName = requestToReview!!.businessName,
+                        clientId = currentUser.uid,
+                        clientName = fullName!!,
+                        rating = submittedRating,
+                        comment = submittedComment,
+                        serviceRequestId = requestToReview!!.id
+                    )
+                }
+            }
+        )
+    }
+
+    LaunchedEffect(reviewSubmissionState) {
+        if (reviewSubmissionState is AddReviewViewModel.ReviewSubmissionState.Success) {
+            viewModel.onDismissReviewDialog()
+            addReviewViewModel.resetState()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.fetchSentRequests()
@@ -89,7 +136,9 @@ fun ProfileRequests(
                                 UserRequestCard(
                                     request = request,
                                     onCancel = { viewModel.cancelRequest(request.id) },
-                                    onPay = { viewModel.checkAndInitiatePayment(request.id) }
+                                    onPay = { viewModel.checkAndInitiatePayment(request.id) },
+                                    onReview = { viewModel.onReviewClick(request) }
+
                                 )
                             }
                         }
@@ -108,7 +157,7 @@ fun ProfileRequests(
 @Composable
 fun PaymentMethodDialog(
     onDismiss: () -> Unit,
-    onPaymentSelected: (String) -> Unit
+    onPaymentSelected: (String) -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -159,7 +208,8 @@ fun PaymentMethodDialog(
 fun UserRequestCard(
     request: ServiceRequest,
     onCancel: () -> Unit,
-    onPay: () -> Unit
+    onPay: () -> Unit,
+    onReview: () -> Unit
 ) {
     val requestedDateFormatted = request.timestamp?.let {
         SimpleDateFormat("EEE, MMM dd, yyyy", Locale.getDefault()).format(it)
@@ -191,20 +241,29 @@ fun UserRequestCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                if (request.status == "Pending") {
-                    OutlinedButton(onClick = onCancel) {
-                        Text("Cancel Request")
+                when (request.status) {
+                    "Pending" -> {
+                        OutlinedButton(onClick = onCancel) {
+                            Text("Cancel Request")
+                        }
                     }
-                }
-                if (request.status == "Pending Payment") {
-                    Button(
-                        onClick = onPay,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0077b6)
-                        )
-                    ) {
-                        Text("Pay for Service")
+                    "Pending Payment" -> {
+                        Button(
+                            onClick = onPay,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0077b6))
+                        ) {
+                            Text("Pay for Service")
+                        }
                     }
+                    "Reservice Accomplished!" -> {
+                        Button(
+                            onClick = onReview, // Use the new onReview handler
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF386641)) // Green color
+                        ) {
+                            Text("Leave a Review")
+                        }
+                    }
+                    else -> {}
                 }
             }
         }

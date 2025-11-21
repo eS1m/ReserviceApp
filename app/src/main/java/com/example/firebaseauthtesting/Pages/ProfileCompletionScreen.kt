@@ -1,3 +1,4 @@
+
 package com.example.firebaseauthtesting.Pages
 
 import android.Manifest

@@ -32,9 +32,43 @@ class ProfileRequestsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<ProfileRequestsUiState>(ProfileRequestsUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    private val _showReviewDialog = MutableStateFlow(false)
+    val showReviewDialog = _showReviewDialog.asStateFlow()
+
+    private val _requestToReview = MutableStateFlow<ServiceRequest?>(null)
+    val requestToReview = _requestToReview.asStateFlow()
+
+    // Used to hold the user's input in the dialog
+    private val _reviewRating = MutableStateFlow(0)
+    val reviewRating = _reviewRating.asStateFlow()
+
+    private val _reviewComment = MutableStateFlow("")
+    val reviewComment = _reviewComment.asStateFlow()
+
     init {
         // Fetch the requests as soon as the ViewModel is created
         fetchSentRequests()
+    }
+
+    fun onReviewClick(request: ServiceRequest) {
+        _requestToReview.value = request
+        _showReviewDialog.value = true
+    }
+
+    fun onDismissReviewDialog() {
+        _showReviewDialog.value = false
+        _requestToReview.value = null
+        // Reset input fields
+        _reviewRating.value = 0
+        _reviewComment.value = ""
+    }
+
+    fun onRatingChange(newRating: Int) {
+        _reviewRating.value = newRating
+    }
+
+    fun onCommentChange(newComment: String) {
+        _reviewComment.value = newComment
     }
 
     fun fetchSentRequests() {

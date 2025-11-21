@@ -54,15 +54,11 @@ class BusinessViewModel : ViewModel() {
             }
 
             try {
-                // Step 1: Check the user's account type from the 'users' collection
                 val userDoc = db.collection("users").document(currentUser.uid).get(Source.SERVER).await()
 
                 if (userDoc.exists() && userDoc.getBoolean("isBusiness") == true) {
-                    // --- THIS IS THE FIX ---
-                    // Step 2: Now that we know it's a business, fetch the profile from the 'businesses' collection
                     val businessDoc = db.collection("businesses").document(currentUser.uid).get(Source.SERVER).await()
 
-                    // Step 3: Check for the 'manager' field in the 'businesses' document
                     val managerName = businessDoc.getString("manager") // Using "manager" as you specified
 
                     if (managerName.isNullOrBlank()) {
@@ -88,9 +84,6 @@ class BusinessViewModel : ViewModel() {
                 return@launch
             }
             try {
-                // --- THIS IS THE FIX ---
-                // Save the manager name to the 'businesses' collection, not the 'users' collection.
-                // We use .set with merge=true to create the doc if it doesn't exist, or update it if it does.
                 db.collection("businesses").document(currentUser.uid)
                     .set(mapOf("manager" to name), com.google.firebase.firestore.SetOptions.merge())
                     .await()
@@ -102,7 +95,6 @@ class BusinessViewModel : ViewModel() {
         }
     }
 
-    // This function remains correct as it modifies the user's role in the 'users' collection
     fun upgradeToBusinessAccount() {
         viewModelScope.launch {
             val currentUser = auth.currentUser ?: return@launch
@@ -117,7 +109,6 @@ class BusinessViewModel : ViewModel() {
         }
     }
 
-    // This function should also write to the 'businesses' collection
     fun saveServices(services: List<String>) {
         viewModelScope.launch {
             val currentUser = auth.currentUser ?: return@launch

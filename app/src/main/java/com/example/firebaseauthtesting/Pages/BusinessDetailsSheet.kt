@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,9 +25,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.firebaseauthtesting.Models.Business
 import com.example.firebaseauthtesting.ViewModels.AuthViewModel
 import com.example.firebaseauthtesting.ViewModels.BusinessDetailsViewModel
-import com.example.firebaseauthtesting.Models.Business
 import com.example.firebaseauthtesting.ViewModels.ServiceRequestState
 import java.text.DecimalFormat
 
@@ -125,7 +124,7 @@ fun BusinessDetailsContent(
                             tint = Color(0xFFFFC107), // Amber color for the star
                             modifier = Modifier.size(20.dp)
                         )
-                        val formattedRating = DecimalFormat("#.#").format(details.rating)
+                        val formattedRating = DecimalFormat("#.#").format(details.averageRating)
                         Text(
                             text = formattedRating,
                             style = MaterialTheme.typography.bodyLarge,
@@ -135,7 +134,8 @@ fun BusinessDetailsContent(
                     }
                 }
                 Divider(modifier = Modifier.padding(vertical = 16.dp))
-                if (details.managerName.isNotBlank()) {
+                // --- FIX #1: Inverted the logic to correctly check if the name is NOT blank ---
+                if (!details.managerName.isNullOrBlank()) {
                     Text(text = "Managed by: ${details.managerName}", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -154,6 +154,7 @@ fun BusinessDetailsContent(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // These calls are now valid because ContactInfoRow accepts nullable strings
                 ContactInfoRow(icon = Icons.Default.Email, text = details.contactEmail)
                 Spacer(modifier = Modifier.height(8.dp))
                 ContactInfoRow(icon = Icons.Default.Phone, text = details.contactPhone)
@@ -180,12 +181,15 @@ fun BusinessDetailsContent(
     }
 }
 
+// --- FIX #2: Changed the parameter 'text' to be a nullable 'String?' and added a safe check ---
 @Composable
-fun ContactInfoRow(icon: ImageVector, text: String) {
-    if(text.isNotBlank()) {
+fun ContactInfoRow(icon: ImageVector, text: String?) {
+    // This check ensures the Row is only composed if the text is not null or blank
+    if(!text.isNullOrBlank()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(16.dp))
+            // Inside this block, the compiler knows 'text' is a non-null String
             Text(text = text, style = MaterialTheme.typography.bodyLarge)
         }
     }
@@ -211,27 +215,19 @@ fun BusinessServices(services: List<String>) {
     }
 }
 
-// ... (Keep all the code from the top of the file down to the BusinessServices composable) ...
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomSchedulingDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String) -> Unit
 ) {
-    // --- STATE MANAGEMENT ---
     val datePickerState = rememberDatePickerState()
     val timePickerState = rememberTimePickerState()
-
-    // Visibility flags for the pickers
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
-
-    // Stored selections
     var selectedDate by remember { mutableStateOf("") }
     var selectedTime by remember { mutableStateOf("") }
 
-    // --- MAIN DIALOG ---
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Schedule a Reservice") },
@@ -241,15 +237,12 @@ fun CustomSchedulingDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // "Date" button
                 Button(
                     onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(if (selectedDate.isBlank()) "Date" else "Date: $selectedDate")
                 }
-
-                // "Time" button
                 Button(
                     onClick = { showTimePicker = true },
                     modifier = Modifier.fillMaxWidth()
@@ -261,7 +254,6 @@ fun CustomSchedulingDialog(
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(selectedDate, selectedTime) },
-                // Request button is only enabled when both date and time are selected
                 enabled = selectedDate.isNotBlank() && selectedTime.isNotBlank()
             ) {
                 Text("Request")
@@ -274,15 +266,13 @@ fun CustomSchedulingDialog(
         }
     )
 
-    // --- DATE PICKER DIALOG ---
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showDatePicker = false // Close the dialog
-                        // Format and store the selected date
+                        showDatePicker = false
                         datePickerState.selectedDateMillis?.let { millis ->
                             val formatter = java.text.SimpleDateFormat("EEE, MMM dd, yyyy", java.util.Locale.getDefault())
                             selectedDate = formatter.format(millis)
@@ -296,7 +286,6 @@ fun CustomSchedulingDialog(
                 TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
             }
         ) {
-            // The actual calendar picker
             DatePicker(state = datePickerState)
         }
     }
@@ -334,18 +323,21 @@ fun TimePickerDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                content() // This will be the TimePicker
+                content()
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismissRequest) { Text("Cancel") }
+                    TextButton(onClick = onDismissRequest) {
+                        Text("Cancel")
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = onConfirm) { Text("OK") }
+                    TextButton(onClick = onConfirm) {
+                        Text("OK")
+                    }
                 }
             }
         }
     }
 }
-

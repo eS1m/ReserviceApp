@@ -27,16 +27,12 @@ fun OpenStreetMap(
     val context = LocalContext.current
     val resources = context.resources
 
-    // FIX 2: Load the original drawable and create a resized version
     val markerIcon: Drawable? = remember {
-        // Load the original drawable
         val originalDrawable = ContextCompat.getDrawable(context, R.drawable.marker)
         if (originalDrawable != null) {
-            // Define the new size in pixels. You can adjust these values.
             val width = 48
             val height = 48
 
-            // Convert the drawable to a bitmap, resize it, and convert back to a drawable
             val bitmap = (originalDrawable as BitmapDrawable).bitmap
             val scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, false)
             BitmapDrawable(resources, scaledBitmap)
@@ -65,7 +61,6 @@ fun OpenStreetMap(
                         this.position = GeoPoint(firestoreGeoPoint.latitude, firestoreGeoPoint.longitude)
                         this.title = business.businessName
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        // FIX 3: Assign the new, resized icon
                         this.icon = markerIcon
                         this.setOnMarkerClickListener { _, _ ->
                             onMarkerClick(business)
