@@ -78,4 +78,22 @@ class ProfileRequestsViewModel : ViewModel() {
             }
         }
     }
+
+    fun submitPayment(requestId: String) {
+        if (requestId.isEmpty()) {
+            _uiState.value = ProfileRequestsUiState.Error("Invalid request ID for payment.")
+            return
+        }
+        viewModelScope.launch {
+            _uiState.value = ProfileRequestsUiState.Loading
+            try {
+                db.collection("serviceRequests").document(requestId)
+                    .update("status", "Confirming Payment")
+                    .await()
+                fetchSentRequests()
+            } catch (e: Exception) {
+                _uiState.value = ProfileRequestsUiState.Error(e.message ?: "Failed to submit payment.")
+            }
+        }
+    }
 }

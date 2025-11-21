@@ -77,7 +77,7 @@ fun ProfileRequests(
                                 UserRequestCard(
                                     request = request,
                                     onCancel = { viewModel.cancelRequest(request.id) },
-                                    onPay = { onPayAction(request.id) }
+                                    onPay = { viewModel.submitPayment(request.id) }
                                 )
                             }
                         }
@@ -136,8 +136,13 @@ fun UserRequestCard(
                     }
                 }
                 if (request.status == "Pending Payment") {
-                    Button(onClick = onPay) {
-                        Text("Pay for Reservice")
+                    Button(
+                        onClick = onPay,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0077b6)
+                        )
+                    ) {
+                        Text("Pay for Service")
                     }
                 }
             }
@@ -158,12 +163,6 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
-// In ProfileRequests.kt...
-
-// --- REPLACE your existing StatusTracker with this updated version ---
-// In ProfileRequests.kt...
-
-// --- REPLACE your existing StatusTracker with this updated version ---
 @Composable
 private fun StatusTracker(status: String) {
     // Define the progress for each step

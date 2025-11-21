@@ -79,7 +79,9 @@ fun BusinessRequests(
                             request = request,
                             onAccept = { businessViewModel.updateRequestStatus(request.id, "Accepted") },
                             onDecline = { businessViewModel.updateRequestStatus(request.id, "Declined") },
-                            onComplete = { businessViewModel.updateRequestStatus(request.id, "Completed") }
+                            onComplete = { businessViewModel.updateRequestStatus(request.id, "Completed") },
+                            onReceivePayment = { businessViewModel.updateRequestStatus(request.id, "Pending Payment") },
+                            onConfirmPayment = { businessViewModel.updateRequestStatus(request.id, "Reservice Accomplished!") }
                         )
                     }
                 }
@@ -94,7 +96,9 @@ fun BusinessRequestCard(
     request: ServiceRequest,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onReceivePayment: () -> Unit,
+    onConfirmPayment: () -> Unit
 ) {
     val requestedDateFormatted = request.timestamp?.let {
         SimpleDateFormat("EEE, MMM dd, yyyy", Locale.getDefault()).format(it)
@@ -123,43 +127,30 @@ fun BusinessRequestCard(
             InfoRow(label = "Scheduled for:", value = "${request.scheduledDate} at ${request.scheduledTime}")
             StatusTracker(status = request.status)
 
-            // Action buttons row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (request.status == "Pending") {
-                    // --- DECLINE BUTTON WITH NEW COLOR ---
-                    Button(
-                        onClick = onDecline,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFbc4749) // Your specified red color
-                        )
-                    ) {
-                        Text("Decline")
-                    }
+                    Button(onClick = onDecline, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFbc4749)))
+                    { Text("Decline") }
                     Spacer(modifier = Modifier.width(8.dp))
-                    // --- ACCEPT BUTTON WITH NEW COLOR ---
-                    Button(
-                        onClick = onAccept,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6a994e) // Your specified green color
-                        )
-                    ) {
-                        Text("Accept")
-                    }
+                    Button(onClick = onAccept, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6a994e)))
+                    { Text("Accept") }
                 }
+
                 if (request.status == "Accepted") {
-                    // Using the same green for consistency
-                    Button(
-                        onClick = onComplete,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6a994e)
-                        )
-                    ) {
-                        Text("Mark as Complete")
-                    }
+                    Button(onClick = onReceivePayment, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0077b6)))
+                    { Text("Receive Payment") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = onComplete, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6a994e)))
+                    { Text("Mark as Complete") }
+                }
+
+                if (request.status == "Confirming Payment") {
+                    Button(onClick = onConfirmPayment, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF386641)))
+                    { Text("Confirm Payment") }
                 }
             }
         }
