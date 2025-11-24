@@ -16,6 +16,11 @@ import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.Query
 import com.example.firebaseauthtesting.Models.Review
 
+data class BusinessDetailsUiState(
+    val business: Business? = null,
+    val recentReviews: List<Review> = emptyList(),
+    val isLoading: Boolean = true
+)
 sealed class ServiceRequestState {
     object Idle : ServiceRequestState()
     object Loading : ServiceRequestState()
@@ -31,8 +36,8 @@ class BusinessDetailsViewModel : ViewModel() {
     private val _businesses = MutableStateFlow<List<Business>>(emptyList())
     val businesses: StateFlow<List<Business>> = _businesses
 
-    private val _selectedBusiness = MutableStateFlow<Business?>(null)
-    val selectedBusiness: StateFlow<Business?> = _selectedBusiness
+    private val _uiState = MutableStateFlow(BusinessDetailsUiState())
+    val uiState: StateFlow<BusinessDetailsUiState> = _uiState
 
     private val _requestState = MutableStateFlow<ServiceRequestState>(ServiceRequestState.Idle)
     val requestState: StateFlow<ServiceRequestState> = _requestState
@@ -74,20 +79,21 @@ class BusinessDetailsViewModel : ViewModel() {
 
 
     fun selectBusiness(businessId: String?) {
-        if (businessId == null) {
-            _selectedBusiness.value = null
+        if (businessId == null || businessId.isBlank()) {
+            _uiState.value = BusinessDetailsUiState(isLoading = false)
             return
         }
 
         viewModelScope.launch {
+            _uiState.value = BusinessDetailsUiState(isLoading = true)
             try {
                 val businessDocument = db.collection("businesses").document(businessId).get().await()
-                val business = businessDocument.toObject(Business::class.java)?.copy(uid = businessDocument.id)
+                val business = businessDocument.toObject(Business::class.java)
 
                 if (business != null) {
                     val reviewsQuery = db.collection("reviews")
                         .whereEqualTo("businessId", businessId)
-                        .limit(10)
+                        .limit(5)
                         .get()
                         .await()
 
@@ -96,17 +102,20 @@ class BusinessDetailsViewModel : ViewModel() {
                     val recentAverage = if (reviews.isNotEmpty()) {
                         reviews.sumOf { it.rating }.toDouble() / reviews.size
                     } else {
-                        0.0
+                        business.averageRating
                     }
 
-
-                    _selectedBusiness.value = business.copy(recentAverageRating = recentAverage)
+                    _uiState.value = BusinessDetailsUiState(
+                        business = business.copy(recentAverageRating = recentAverage),
+                        recentReviews = reviews,
+                        isLoading = false
+                    )
 
                 } else {
-                    _selectedBusiness.value = null
+                    _uiState.value = BusinessDetailsUiState(isLoading = false)
                 }
             } catch (e: Exception) {
-                _selectedBusiness.value = null
+                _uiState.value = BusinessDetailsUiState(isLoading = false)
             }
         }
     }

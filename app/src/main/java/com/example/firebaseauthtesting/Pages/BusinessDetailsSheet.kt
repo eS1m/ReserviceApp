@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,6 +27,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.firebaseauthtesting.Models.Business
+import com.example.firebaseauthtesting.Models.Review
 import com.example.firebaseauthtesting.ViewModels.AuthViewModel
 import com.example.firebaseauthtesting.ViewModels.BusinessDetailsViewModel
 import com.example.firebaseauthtesting.ViewModels.ServiceRequestState
@@ -38,7 +40,7 @@ fun BusinessDetailsSheet(
     detailsViewModel: BusinessDetailsViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel()
 ) {
-    val selectedBusiness by detailsViewModel.selectedBusiness.collectAsState()
+    val uiState by detailsViewModel.uiState.collectAsState()
     val requestState by detailsViewModel.requestState.collectAsState()
     val fullName by authViewModel.fullName.collectAsStateWithLifecycle()
     var showSchedulingDialog by remember { mutableStateOf(false) }
@@ -53,12 +55,14 @@ fun BusinessDetailsSheet(
         CustomSchedulingDialog(
             onDismiss = { showSchedulingDialog = false },
             onConfirm = { date: String, time: String ->
-                detailsViewModel.createServiceRequest(
-                    business = selectedBusiness!!,
-                    userName = if (fullName.isNullOrBlank()) "Anonymous" else fullName!!,
-                    scheduledDate = date,
-                    scheduledTime = time
-                )
+                uiState.business?.let {
+                    detailsViewModel.createServiceRequest(
+                        business = it,
+                        userName = if (fullName.isNullOrBlank()) "Anonymous" else fullName!!,
+                        scheduledDate = date,
+                        scheduledTime = time
+                    )
+                }
                 showSchedulingDialog = false
             }
         )
@@ -72,16 +76,20 @@ fun BusinessDetailsSheet(
 
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
         when {
-            selectedBusiness == null && businessId.isNotBlank() -> {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp), contentAlignment = Alignment.Center) {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
             }
-            selectedBusiness != null -> {
+            uiState.business != null -> {
                 BusinessDetailsContent(
-                    details = selectedBusiness!!,
+                    details = uiState.business!!,
+                    reviews = uiState.recentReviews, // Pass reviews
                     requestState = requestState,
                     onRequestClick = {
                         showSchedulingDialog = true
@@ -95,6 +103,7 @@ fun BusinessDetailsSheet(
 @Composable
 fun BusinessDetailsContent(
     details: Business,
+    reviews: List<Review>,
     requestState: ServiceRequestState,
     onRequestClick: () -> Unit
 ) {
@@ -143,6 +152,8 @@ fun BusinessDetailsContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+                RecentReviews(reviews = reviews)
             }
         }
 
@@ -337,6 +348,69 @@ fun TimePickerDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun RecentReviews(reviews: List<Review>) {
+    if (reviews.isNotEmpty()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Recent Reviews:",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            reviews.forEach { review ->
+                ReviewCard(review = review)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
+        }
+    }
+}
+
+@Composable
+fun ReviewCard(review: Review) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = review.comment,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Rating",
+                        tint = Color(0xFFFFC107),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "${review.rating}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "- ${review.clientName}",
+                style = MaterialTheme.typography.bodySmall,
+                fontStyle = FontStyle.Italic,
+                modifier = Modifier.align(Alignment.End)
+            )
         }
     }
 }
