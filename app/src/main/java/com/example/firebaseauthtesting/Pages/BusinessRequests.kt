@@ -37,13 +37,11 @@ fun BusinessRequests(
         businessViewModel.fetchIncomingRequests()
     }
 
-    // Main layout column
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // --- TITLE IS NOW OUTSIDE THE CARD ---
         Text(
             "Incoming Service Requests",
             style = MaterialTheme.typography.headlineMedium,
@@ -51,7 +49,6 @@ fun BusinessRequests(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- CARD NOW WRAPS ONLY THE REQUESTS LIST AND ITS STATES ---
         Card(
             modifier = Modifier.fillMaxSize(),
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)

@@ -10,9 +10,9 @@ data class Business(
     val averageRating: Double = 0.0,
     val ratingCount: Int = 0,
 
-    // --- ADD THESE NEW FIELDS ---
     val managerName: String? = null,
     val contactEmail: String? = null,
-    val contactPhone: String? = null
-    // ----------------------------
+    val contactPhone: String? = null,
+
+    @field:Transient val recentAverageRating: Double = 0.0
 )

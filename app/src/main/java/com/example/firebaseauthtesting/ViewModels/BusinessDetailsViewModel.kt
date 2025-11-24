@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.Query
+import com.example.firebaseauthtesting.Models.Review
 
 sealed class ServiceRequestState {
     object Idle : ServiceRequestState()
@@ -79,8 +81,30 @@ class BusinessDetailsViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val document = db.collection("businesses").document(businessId).get().await()
-                _selectedBusiness.value = document.toObject(Business::class.java)?.copy(uid = document.id)
+                val businessDocument = db.collection("businesses").document(businessId).get().await()
+                val business = businessDocument.toObject(Business::class.java)?.copy(uid = businessDocument.id)
+
+                if (business != null) {
+                    val reviewsQuery = db.collection("reviews")
+                        .whereEqualTo("businessId", businessId)
+                        .limit(10)
+                        .get()
+                        .await()
+
+                    val reviews = reviewsQuery.documents.mapNotNull { it.toObject(Review::class.java) }
+
+                    val recentAverage = if (reviews.isNotEmpty()) {
+                        reviews.sumOf { it.rating }.toDouble() / reviews.size
+                    } else {
+                        0.0
+                    }
+
+
+                    _selectedBusiness.value = business.copy(recentAverageRating = recentAverage)
+
+                } else {
+                    _selectedBusiness.value = null
+                }
             } catch (e: Exception) {
                 _selectedBusiness.value = null
             }

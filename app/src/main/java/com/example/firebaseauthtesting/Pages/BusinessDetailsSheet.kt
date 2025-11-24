@@ -121,10 +121,10 @@ fun BusinessDetailsContent(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Rating",
-                            tint = Color(0xFFFFC107), // Amber color for the star
+                            tint = Color(0xFFFFC107),
                             modifier = Modifier.size(20.dp)
                         )
-                        val formattedRating = DecimalFormat("#.#").format(details.averageRating)
+                        val formattedRating = DecimalFormat("#.#").format(details.recentAverageRating)
                         Text(
                             text = formattedRating,
                             style = MaterialTheme.typography.bodyLarge,
@@ -134,7 +134,6 @@ fun BusinessDetailsContent(
                     }
                 }
                 Divider(modifier = Modifier.padding(vertical = 16.dp))
-                // --- FIX #1: Inverted the logic to correctly check if the name is NOT blank ---
                 if (!details.managerName.isNullOrBlank()) {
                     Text(text = "Managed by: ${details.managerName}", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(16.dp))
