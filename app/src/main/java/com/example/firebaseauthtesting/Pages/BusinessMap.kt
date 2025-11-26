@@ -22,16 +22,14 @@ import com.google.android.gms.location.LocationServices
 import org.osmdroid.util.GeoPoint
 import com.example.firebaseauthtesting.Pages.BusinessDetailsSheet
 
-// Renamed to BusinessMapScreen to match the file name.
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun BusinessMapScreen(
     navController: NavController,
     serviceCategory: String,
-    // Use the correct ViewModel we created for this screen's logic.
+    customServiceName: String?,
     mapViewModel: BusinessMapViewModel = viewModel()
 ) {
-    // Collect the state from the correct ViewModel
     val businesses by mapViewModel.businesses.collectAsStateWithLifecycle()
     val isLoading by mapViewModel.isLoading.collectAsStateWithLifecycle()
     val error by mapViewModel.error.collectAsStateWithLifecycle()
@@ -41,20 +39,16 @@ fun BusinessMapScreen(
     var selectedBusiness by remember { mutableStateOf<Business?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // This composable handles getting the user's current location
     RememberDeviceLocation { location ->
         userLocation = location
     }
 
-    // This is the crucial effect that triggers data fetching.
-    // It runs when the screen appears or if the serviceCategory changes.
     LaunchedEffect(serviceCategory) {
         if (serviceCategory.isNotBlank()) {
             mapViewModel.fetchBusinesses(serviceCategory)
         }
     }
 
-    // This is the list of pairs that OpenStreetMap now expects.
     val mapBusinesses = remember(businesses) {
         businesses.mapNotNull { business ->
             business.location?.let { firestoreGeoPoint ->
@@ -117,7 +111,9 @@ fun BusinessMapScreen(
             sheetState = sheetState
         ) {
             BusinessDetailsSheet(
-                businessId = selectedBusiness!!.uid
+                businessId = selectedBusiness!!.uid,
+                serviceCategory = serviceCategory,
+                customServiceName = customServiceName
             )
         }
     }

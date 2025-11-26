@@ -10,7 +10,7 @@ sealed class Screen(val route: String, val title: String? = null) {
     object BusinessRequests : Screen("business_requests")
     // In your Screen sealed class
     object ProfileRequests : Screen("profile_requests", "My Requests")
-    object BusinessMap : Screen("business_map/{serviceCategory}")
+    object BusinessMap : Screen("business_map/{serviceCategory}?customServiceName={customServiceName}")
 
 
     companion object {

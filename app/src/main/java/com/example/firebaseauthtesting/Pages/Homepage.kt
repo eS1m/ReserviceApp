@@ -84,9 +84,9 @@ fun Homepage(
                 Button(
                     onClick = {
                         if (customServiceName.isNotBlank()) {
-                            navController.navigate(Screen.BusinessMap.route + "/Custom")
+                            navController.navigate("business_map/Custom?customServiceName=${customServiceName}")
                             showCustomServiceDialog = false
-                            customServiceName = "" // Reset after search
+                            customServiceName = ""
                         }
                     },
                     enabled = customServiceName.isNotBlank()

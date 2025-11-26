@@ -37,6 +37,8 @@ import java.text.DecimalFormat
 @Composable
 fun BusinessDetailsSheet(
     businessId: String,
+    serviceCategory: String,
+    customServiceName: String?,
     detailsViewModel: BusinessDetailsViewModel = viewModel(),
     authViewModel: AuthViewModel = viewModel()
 ) {
@@ -60,7 +62,9 @@ fun BusinessDetailsSheet(
                         business = it,
                         userName = if (fullName.isNullOrBlank()) "Anonymous" else fullName!!,
                         scheduledDate = date,
-                        scheduledTime = time
+                        scheduledTime = time,
+                        serviceCategory = serviceCategory,
+                        customServiceName = customServiceName
                     )
                 }
                 showSchedulingDialog = false

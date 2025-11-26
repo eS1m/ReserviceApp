@@ -124,7 +124,9 @@ class BusinessDetailsViewModel : ViewModel() {
         business: Business,
         userName: String,
         scheduledDate: String,
-        scheduledTime: String
+        scheduledTime: String,
+        serviceCategory: String,
+        customServiceName: String?
     ) {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -134,12 +136,17 @@ class BusinessDetailsViewModel : ViewModel() {
         _requestState.value = ServiceRequestState.Loading
         viewModelScope.launch {
             try {
+                val serviceForRequest = if (serviceCategory == "Custom" && !customServiceName.isNullOrBlank()) {
+                    customServiceName
+                } else {
+                    serviceCategory
+                }
                 val newRequest = ServiceRequest(
                     userId = currentUser.uid,
                     userName = userName,
                     businessId = business.uid, // Get ID from the object
                     businessName = business.businessName,
-                    service = business.services.firstOrNull() ?: "General Inquiry",
+                    service = serviceForRequest,
                     status = "Pending",
                     scheduledDate = scheduledDate,
                     scheduledTime = scheduledTime

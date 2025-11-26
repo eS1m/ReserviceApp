@@ -115,14 +115,24 @@ fun MyAppNavigation(
             }
 
             composable(
-                route = Screen.BusinessMap.route + "/{serviceCategory}",
-                arguments = listOf(navArgument("serviceCategory") { type = NavType.StringType })
+                route = Screen.BusinessMap.route,
+                arguments = listOf(
+                    navArgument("serviceCategory") { type = NavType.StringType },
+                    navArgument("customServiceName") {type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
             ) { backStackEntry ->
                 val serviceCategory = backStackEntry.arguments?.getString("serviceCategory")
-                BusinessMapScreen(
-                    navController = navController,
-                    serviceCategory = serviceCategory ?: "Unknown"
-                )
+                val customServiceName = backStackEntry.arguments?.getString("customServiceName")
+                if (serviceCategory != null) {
+                    BusinessMapScreen(
+                        navController = navController,
+                        serviceCategory = serviceCategory,
+                        customServiceName = customServiceName
+                    )
+                }
             }
 
             composable(Screen.BusinessRequests.route) {
