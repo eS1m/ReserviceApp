@@ -160,8 +160,15 @@ fun BusinessDetailsContent(
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.Start
             ) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Contact Information:",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 ContactInfoRow(
@@ -169,10 +176,12 @@ fun BusinessDetailsContent(
                     text = details.managerName,
                     prefix = "Manager: "
                 )
-                ContactInfoRow(icon = Icons.Default.Email, text = details.contactEmail)
-                Spacer(modifier = Modifier.height(8.dp))
-                ContactInfoRow(icon = Icons.Default.Phone, text = details.contactPhone)
+                Spacer(modifier = Modifier.height(12.dp))
 
+                ContactInfoRow(icon = Icons.Default.Email, text = details.contactEmail)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                ContactInfoRow(icon = Icons.Default.Phone, text = details.contactPhone)
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
