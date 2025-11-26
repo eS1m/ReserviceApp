@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -147,11 +148,6 @@ fun BusinessDetailsContent(
                     }
                 }
                 Divider(modifier = Modifier.padding(vertical = 16.dp))
-                if (!details.managerName.isNullOrBlank()) {
-                    Text(text = "Managed by: ${details.managerName}", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
                 BusinessServices(services = details.services)
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -168,7 +164,11 @@ fun BusinessDetailsContent(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // These calls are now valid because ContactInfoRow accepts nullable strings
+                ContactInfoRow(
+                    icon = Icons.Default.Person,
+                    text = details.managerName,
+                    prefix = "Manager: "
+                )
                 ContactInfoRow(icon = Icons.Default.Email, text = details.contactEmail)
                 Spacer(modifier = Modifier.height(8.dp))
                 ContactInfoRow(icon = Icons.Default.Phone, text = details.contactPhone)
@@ -195,16 +195,13 @@ fun BusinessDetailsContent(
     }
 }
 
-// --- FIX #2: Changed the parameter 'text' to be a nullable 'String?' and added a safe check ---
 @Composable
-fun ContactInfoRow(icon: ImageVector, text: String?) {
-    // This check ensures the Row is only composed if the text is not null or blank
-    if(!text.isNullOrBlank()) {
+fun ContactInfoRow(icon: ImageVector, text: String?, prefix: String = "") {
+    if (!text.isNullOrBlank()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(16.dp))
-            // Inside this block, the compiler knows 'text' is a non-null String
-            Text(text = text, style = MaterialTheme.typography.bodyLarge)
+            Text(text = "$prefix$text", style = MaterialTheme.typography.bodyLarge)
         }
     }
 }

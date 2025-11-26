@@ -59,7 +59,7 @@ class BusinessViewModel : ViewModel() {
                 if (userDoc.exists() && userDoc.getBoolean("isBusiness") == true) {
                     val businessDoc = db.collection("businesses").document(currentUser.uid).get(Source.SERVER).await()
 
-                    val managerName = businessDoc.getString("manager") // Using "manager" as you specified
+                    val managerName = businessDoc.getString("managerName")
 
                     if (managerName.isNullOrBlank()) {
                         _uiState.value = BusinessUiState.NeedsManagerSetup
@@ -85,7 +85,7 @@ class BusinessViewModel : ViewModel() {
             }
             try {
                 db.collection("businesses").document(currentUser.uid)
-                    .set(mapOf("manager" to name), com.google.firebase.firestore.SetOptions.merge())
+                    .set(mapOf("managerName" to name), com.google.firebase.firestore.SetOptions.merge())
                     .await()
 
                 checkUserBusinessStatus()

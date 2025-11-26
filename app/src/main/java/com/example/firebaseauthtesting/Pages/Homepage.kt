@@ -187,7 +187,10 @@ fun Homepage(
                         if (category.name == "Custom") {
                             showCustomServiceDialog = true
                         } else {
-                        navController.navigate(Screen.BusinessMap.route + "/${category.name}")
+                            val route = Screen.BusinessMap.route
+                                .replace("{serviceCategory}", category.name)
+                                .substringBefore("?")
+                            navController.navigate(route)
                         }
                     }
                 }

@@ -78,25 +78,20 @@ fun BusinessMapScreen(
             contentAlignment = Alignment.Center
         ) {
             when {
-                // Show a loading indicator while fetching businesses OR getting user location.
                 isLoading || userLocation == null -> {
                     CircularProgressIndicator()
                 }
-                // Show an error message if one occurred.
                 error != null -> {
                     Text(text = "Error: $error")
                 }
-                // Once we have data and location, show the map.
                 else -> {
                     OpenStreetMap(
                         modifier = Modifier.fillMaxSize(),
-                        // Pass the correctly transformed list of pairs.
                         businesses = businesses,
                         onMarkerClick = { business ->
                             selectedBusiness = business
                             showSheet = true
                         },
-                        // Start the map at the user's location, with a fallback.
                         startPoint = userLocation ?: GeoPoint(40.7128, -74.0060)
                     )
                 }
@@ -104,7 +99,6 @@ fun BusinessMapScreen(
         }
     }
 
-    // This is the bottom sheet for showing business details.
     if (showSheet && selectedBusiness != null) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
