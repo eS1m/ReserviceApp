@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.CleanHands
+import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Loop
 import androidx.compose.material.icons.outlined.Person
@@ -17,6 +18,9 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -51,7 +55,55 @@ fun Homepage(
         ServiceCategory("Utilities", Icons.Outlined.Settings),
         ServiceCategory("Home Repair", Icons.Outlined.Home),
         ServiceCategory("Maid", Icons.Outlined.CleanHands),
+        ServiceCategory("Custom", Icons.Outlined.Create)
     )
+
+    var showCustomServiceDialog by remember { mutableStateOf(false) }
+    var customServiceName by remember { mutableStateOf("") }
+
+    if (showCustomServiceDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showCustomServiceDialog = false
+                customServiceName = "" // Reset on dismiss
+            },
+            title = { Text("Custom Service") },
+            text = {
+                Column {
+                    Text("What service are you looking for?")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = customServiceName,
+                        onValueChange = { customServiceName = it },
+                        label = { Text("Service Name") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (customServiceName.isNotBlank()) {
+                            navController.navigate(Screen.BusinessMap.route + "/Custom")
+                            showCustomServiceDialog = false
+                            customServiceName = "" // Reset after search
+                        }
+                    },
+                    enabled = customServiceName.isNotBlank()
+                ) {
+                    Text("Search")
+                }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    showCustomServiceDialog = false
+                    customServiceName = "" // Reset on cancel
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier
@@ -132,7 +184,11 @@ fun Homepage(
             ) {
                 items(serviceCategories) { category ->
                     ServiceCard(category = category) {
+                        if (category.name == "Custom") {
+                            showCustomServiceDialog = true
+                        } else {
                         navController.navigate(Screen.BusinessMap.route + "/${category.name}")
+                        }
                     }
                 }
             }
@@ -151,7 +207,9 @@ fun ServiceCard(category: ServiceCategory, onClick: () -> Unit) {
         )
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {

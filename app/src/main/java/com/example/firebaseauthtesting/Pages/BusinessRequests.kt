@@ -115,6 +115,16 @@ fun BusinessRequestCard(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+
+            if (request.service.isNotBlank()) {
+                Text(
+                    text = "Service: ${request.service}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
             Text(
                 text = "Requested on: $requestedDateFormatted",
                 style = MaterialTheme.typography.bodyMedium,

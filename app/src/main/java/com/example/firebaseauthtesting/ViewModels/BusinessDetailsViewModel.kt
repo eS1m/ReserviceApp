@@ -121,7 +121,7 @@ class BusinessDetailsViewModel : ViewModel() {
     }
 
     fun createServiceRequest(
-        business: Business, // Was: businessId: String, businessName: String
+        business: Business,
         userName: String,
         scheduledDate: String,
         scheduledTime: String
@@ -139,6 +139,7 @@ class BusinessDetailsViewModel : ViewModel() {
                     userName = userName,
                     businessId = business.uid, // Get ID from the object
                     businessName = business.businessName,
+                    service = business.services.firstOrNull() ?: "General Inquiry",
                     status = "Pending",
                     scheduledDate = scheduledDate,
                     scheduledTime = scheduledTime

@@ -160,7 +160,7 @@ fun BusinessDashboard(
     onSave: (List<String>) -> Unit,
     navController: NavController
 ) {
-    val allServices = listOf("Utilities", "Home Repair", "Maid")
+    val allServices = listOf("Utilities", "Home Repair", "Maid", "Custom")
     var selectedServices by remember { mutableStateOf(profile.services) }
     LaunchedEffect(profile.services) {
         selectedServices = profile.services

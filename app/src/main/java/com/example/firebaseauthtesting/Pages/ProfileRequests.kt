@@ -229,6 +229,17 @@ fun UserRequestCard(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+
+            if (request.service.isNotBlank()) {
+                Text(
+                    text = "Service: ${request.service}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
             Text(
                 text = "Requested on: $requestedDateFormatted",
                 style = MaterialTheme.typography.bodyMedium,

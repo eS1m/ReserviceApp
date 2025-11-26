@@ -11,6 +11,8 @@ data class ServiceRequest(
     val businessId: String = "",
     val businessName: String = "",
 
+    val service: String = "",
+
     @ServerTimestamp
     val timestamp: Date? = null,
     val scheduledDate: String = "",
