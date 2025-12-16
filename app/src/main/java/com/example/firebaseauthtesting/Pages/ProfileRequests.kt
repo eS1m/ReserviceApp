@@ -240,6 +240,14 @@ fun UserRequestCard(
                 )
             }
 
+            request.amount?.let {
+                Text(
+                    text = "Amount: $${String.format("%.2f", it)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
             Text(
                 text = "Requested on: $requestedDateFormatted",
                 style = MaterialTheme.typography.bodyMedium,

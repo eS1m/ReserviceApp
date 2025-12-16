@@ -13,6 +13,8 @@ data class ServiceRequest(
 
     val service: String = "",
 
+    val amount: Double? = null,
+
     @ServerTimestamp
     val timestamp: Date? = null,
     val scheduledDate: String = "",

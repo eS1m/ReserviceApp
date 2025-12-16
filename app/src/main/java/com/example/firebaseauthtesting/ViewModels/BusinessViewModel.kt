@@ -156,6 +156,24 @@ class BusinessViewModel : ViewModel() {
         }
     }
 
+    fun acceptRequestWithAmount(requestId: String, amount: Double) {
+        if (requestId.isEmpty()) {
+            _error.value = "Cannot update status: Invalid request ID."
+            return
+        }
+        viewModelScope.launch {
+            try {
+                db.collection("serviceRequests").document(requestId)
+                    .update(mapOf(
+                        "status" to "Accepted",
+                        "amount" to amount
+                    )).await()
+            } catch (e: Exception) {
+                _error.value = "Failed to update status: ${e.message}"
+            }
+        }
+    }
+
     fun updateRequestStatus(requestId: String, newStatus: String) {
         if (requestId.isEmpty()) {
             _error.value = "Cannot update status: Invalid request ID."

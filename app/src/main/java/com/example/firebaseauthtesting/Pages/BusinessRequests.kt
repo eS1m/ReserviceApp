@@ -7,16 +7,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -33,8 +38,55 @@ fun BusinessRequests(
     val isLoading by businessViewModel.isLoading.collectAsState()
     val error by businessViewModel.error.collectAsState()
 
+    var showAmountDialog by remember { mutableStateOf(false) }
+    var selectedRequestForAmount by remember { mutableStateOf<ServiceRequest?>(null) }
+    var amountInput by remember { mutableStateOf("") }
+
     LaunchedEffect(Unit) {
         businessViewModel.fetchIncomingRequests()
+    }
+
+    if (showAmountDialog && selectedRequestForAmount != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showAmountDialog = false
+                amountInput = ""
+            },
+            title = { Text("Set Service Amount") },
+            text = {
+                OutlinedTextField(
+                    value = amountInput,
+                    onValueChange = { amountInput = it },
+                    label = { Text("Amount (e.g., 25.50)") },
+                    prefix = { Text("$") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val amount = amountInput.toDoubleOrNull()
+                        if (amount != null && amount > 0) {
+                            businessViewModel.acceptRequestWithAmount(selectedRequestForAmount!!.id, amount)
+                            showAmountDialog = false
+                            amountInput = ""
+                        }
+                    },
+                    enabled = amountInput.toDoubleOrNull()?.let { it > 0 } ?: false
+                ) {
+                    Text("Accept")
+                }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    showAmountDialog = false
+                    amountInput = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Column(
@@ -74,8 +126,10 @@ fun BusinessRequests(
                     items(requests) { request ->
                         BusinessRequestCard(
                             request = request,
-                            onAccept = { businessViewModel.updateRequestStatus(request.id, "Accepted") },
-                            onDecline = { businessViewModel.updateRequestStatus(request.id, "Declined") },
+                            onAccept = {
+                                selectedRequestForAmount = request
+                                showAmountDialog = true
+                            },                            onDecline = { businessViewModel.updateRequestStatus(request.id, "Declined") },
                             onComplete = { businessViewModel.updateRequestStatus(request.id, "Completed") },
                             onReceivePayment = { businessViewModel.updateRequestStatus(request.id, "Pending Payment") },
                             onConfirmPayment = { businessViewModel.updateRequestStatus(request.id, "Reservice Accomplished!") }
@@ -122,6 +176,14 @@ fun BusinessRequestCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            request.amount?.let {
+                Text(
+                    text = "Amount: $${String.format("%.2f", it)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
