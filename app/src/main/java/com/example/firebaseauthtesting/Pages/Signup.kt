@@ -108,8 +108,12 @@ fun Signup(
         Button(
             onClick = {
                 if (email.isNotBlank() && password.isNotBlank() && fullName.isNotBlank()) {
-                    val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
-                    navController.navigate("profile_completion/$fullName/$encodedEmail/$password")
+                    if (password == confirmPassword) {
+                        val encodedEmail = java.net.URLEncoder.encode(email, "UTF-8")
+                        navController.navigate("profile_completion/$fullName/$encodedEmail/$password")
+                    } else {
+                        Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             enabled = !isLoading
