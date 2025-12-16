@@ -60,14 +60,12 @@ fun ProfileCompletionScreen(
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // Request permission on launch
     LaunchedEffect(locationPermissionState) {
         if (!locationPermissionState.status.isGranted) {
             locationPermissionState.launchPermissionRequest()
         }
     }
 
-    // When permission is granted, get location
     LaunchedEffect(locationPermissionState.status) {
         if (locationPermissionState.status.isGranted) {
             @SuppressLint("MissingPermission")
@@ -79,7 +77,6 @@ fun ProfileCompletionScreen(
         }
     }
 
-    // Navigation logic on successful save
     LaunchedEffect(saveStatus) {
         when (val status = saveStatus) {
             is SaveStatus.Success -> {
@@ -173,7 +170,6 @@ fun ProfileCompletionScreen(
             Button(
                 onClick = {
                     selectedLocation?.let { location ->
-                        // Call the correct ViewModel function with all the data
                         viewModel.createAccountAndProfile(
                             email = email,
                             password = password,
